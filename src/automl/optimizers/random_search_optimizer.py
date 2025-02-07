@@ -3,6 +3,7 @@ import time
 import logging
 from automl.optimizers.base_optimizer import BaseOptimizer
 from automl.config import get_config
+from automl.enums import Task
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -39,7 +40,7 @@ class RandomSearchOptimizer(BaseOptimizer):
 
         if model_name == "RandomForest":
             from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-            ModelClass = RandomForestClassifier if self.task == "classification" else RandomForestRegressor
+            ModelClass = RandomForestClassifier if self.task == Task.CLASSIFICATION else RandomForestRegressor
             model = ModelClass(
                 n_estimators=candidate_params.get("n_estimators"),
                 max_depth=candidate_params.get("max_depth"),
@@ -48,7 +49,7 @@ class RandomSearchOptimizer(BaseOptimizer):
 
         elif model_name == "XGBoost":
             from xgboost import XGBClassifier, XGBRegressor
-            ModelClass = XGBClassifier if self.task == "classification" else XGBRegressor
+            ModelClass = XGBClassifier if self.task == Task.CLASSIFICATION else XGBRegressor
             model = ModelClass(
                 learning_rate=candidate_params.get("learning_rate"),
                 n_estimators=candidate_params.get("n_estimators"),

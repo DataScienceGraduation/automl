@@ -30,6 +30,7 @@ class BaseOptimizer(ABC):
                 self.metric = "accuracy"
         else:
             self.metric = metric
+        print(f"Using metric: {self.metric}")
 
         # Expect configuration to define available models and their hyperparameter ranges.
         self.models_config = self.config.get("models", {})
@@ -44,7 +45,7 @@ class BaseOptimizer(ABC):
         """
         model = model_builder(candidate_params)
         metric = self.metric
-        if metric == "rsme":
+        if metric == "rmse":
             metric = "neg_root_mean_squared_error"
         scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
         avg_score = scores.mean()
