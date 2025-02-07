@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging directories
+build/
+dist/
+*.egg-info/
+
+# Virtual environment directories
+.env/
+.venv/
+env/
+venv/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+
+# Test output
+.tox/
+.nox/
+
+# Sphinx documentation build
+docs/_build/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# IDE specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db

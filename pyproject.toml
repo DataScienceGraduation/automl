@@ -1,0 +1,35 @@
+[project]
+name = "automl"
+version = "0.1.0"
+description = "An automated machine learning package"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Khaled Ibrahim", email = "khaled.elbalal@gmail.com" },
+  { name = "Malak Abouelkhair", email = "malak.abouelkhair@gmail.com" },
+  { name = "Malak Mahmoud", email = "malak.mahmoud.hassann@gmail.com" },
+  { name = "Omar Galal", email = "omar.galal.hassan@gmail.com" },
+  { name = "Mohamed Yasser", email = "mohamed.y.abdelmaged@gmail.com" },
+  { name = "Ahmed Khaled", email = "khaled.elbalal@gmail.com" }
+]
+
+
+dependencies = [
+    "joblib==1.4.2",
+    "numpy==2.1.2",
+    "pandas==2.2.3",
+    "scikit-learn==1.5.2",
+    "scipy==1.14.1",
+    "xgboost==2.1.1",
+    "pyarrow==19.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.3",
+    "pytest-mock==3.14.0"
+]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
