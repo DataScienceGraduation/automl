@@ -21,7 +21,7 @@ class RandomSearchOptimizer(BaseOptimizer):
         """
         config = get_config(task)
         super().__init__(task, time_budget, metric=None, verbose=verbose, config=config)
-        self.best_score = -np.inf if self.metric != "neg_mean_squared_error" else np.inf  # Lower is better for MSE
+        self.best_score = -np.inf if self.metric != "neg_mean_squared_error" else np.inf
 
     def _generate_candidate(self) -> dict:
         """
@@ -31,59 +31,15 @@ class RandomSearchOptimizer(BaseOptimizer):
         model_names = list(self.models_config.keys())
         chosen_model = np.random.choice(model_names)
         candidate["model"] = chosen_model
+
         for param, values in self.models_config[chosen_model].items():
             candidate[param] = np.random.choice(values)
         return candidate
 
-    def _build_model(self, candidate_params: dict):
-        model_name = candidate_params["model"]
-
-        if model_name == "RandomForest":
-            from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-            ModelClass = RandomForestClassifier if self.task == Task.CLASSIFICATION else RandomForestRegressor
-            model = ModelClass(
-                n_estimators=candidate_params.get("n_estimators"),
-                max_depth=candidate_params.get("max_depth"),
-                min_samples_split=candidate_params.get("min_samples_split"),
-            )
-
-        elif model_name == "XGBoost":
-            from xgboost import XGBClassifier, XGBRegressor
-            ModelClass = XGBClassifier if self.task == Task.CLASSIFICATION else XGBRegressor
-            model = ModelClass(
-                learning_rate=candidate_params.get("learning_rate"),
-                n_estimators=candidate_params.get("n_estimators"),
-                max_depth=candidate_params.get("max_depth"),
-                gamma=candidate_params.get("gamma"),
-            )
-
-        elif model_name == "LogisticRegression":
-            from sklearn.linear_model import LogisticRegression
-            model = LogisticRegression(C=candidate_params.get("C"))
-
-        elif model_name == "LinearRegression":
-            from sklearn.linear_model import LinearRegression
-            model = LinearRegression()
-
-        elif model_name == "Ridge":
-            from sklearn.linear_model import Ridge
-            model = Ridge(alpha=candidate_params.get("alpha"))
-
-        elif model_name == "Lasso":
-            from sklearn.linear_model import Lasso
-            model = Lasso(alpha=candidate_params.get("alpha"))
-
-        else:
-            raise ValueError(f"Unsupported model: {model_name}")
-
-        return model
-
     def fit(self, X: np.ndarray, y: np.ndarray):
         """
         Perform random search to find the best hyperparameter configuration.
-
-        Returns:
-            Trained model with the best found parameters.
+        Returns a trained model with those parameters.
         """
         history = []
         start_time = time.time()
@@ -105,8 +61,9 @@ class RandomSearchOptimizer(BaseOptimizer):
         best_params = max(history, key=lambda item: item[1])[0]
         logger.info("Best candidate found: %s", best_params)
 
-        final_model = self._build_model(best_params)
+        final_model = self.build_model(best_params)
         final_model.fit(X, y)
+
         self.optimal_model = final_model
         self.metric_value = self.best_score
 
