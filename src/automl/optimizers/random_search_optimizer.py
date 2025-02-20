@@ -1,9 +1,26 @@
 import numpy as np
+import pandas as pd
 import time
 import logging
 from automl.optimizers.base_optimizer import BaseOptimizer
 from automl.config import get_config
 from automl.enums import Task
+import numpy as np
+import time
+import logging
+from automl.optimizers.surrogate_models import GaussianProcessSurrogate
+from automl.optimizers.acquisition_functions import ExpectedImprovement
+from sklearn.preprocessing import LabelEncoder
+from automl.config import get_config
+from automl.enums import Task
+import pandas as pd
+from celery import shared_task
+from automl.enums import Task, Metric
+from automl.functions import createPipeline
+import joblib
+import os
+import pandas as pd
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -113,3 +130,18 @@ class RandomSearchOptimizer(BaseOptimizer):
         logger.info("Optimization complete. Best model: %s with score %.4f",
                     final_model.__class__.__name__, self.best_score)
         return final_model
+    
+if __name__ == '__main__':
+    df = pd.read_csv(r'D:\1GRADUATION-PROJECT\Protoype\prototype-backend\automlapp\tests\diabetes.csv')
+    print(df)
+    pl = createPipeline(df, 'Outcome')
+    df = pl.transform(df)
+    hpo = RandomSearchOptimizer(task = Task.CLASSIFICATION, time_budget=10)
+
+    # hpo = bayesian_optimizer_hyperband(task = Task.CLASSIFICATION, time_budget=150)
+    X = df.drop(columns=["Outcome"])
+    Y = df['Outcome']
+    hpo.fit(X,Y)
+    accuracy = hpo.get_metric_value()
+    print(accuracy)
+    

@@ -1,6 +1,11 @@
 from abc import ABC, abstractmethod
 from sklearn.model_selection import cross_val_score
+import numpy as np
 from automl import Task
+import time
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class BaseOptimizer(ABC):
@@ -51,8 +56,8 @@ class BaseOptimizer(ABC):
         avg_score = scores.mean()
         if self.verbose:
             print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
-        return avg_score
-
+            return avg_score
+    
     @abstractmethod
     def fit(self, X, y):
         """Run the optimization process and return the fitted model."""
