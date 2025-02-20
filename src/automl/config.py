@@ -6,18 +6,31 @@ CLASSIFICATION_CONFIG = {
     "default_metric": "accuracy",
     "models": {
         "RandomForest": {
-            "n_estimators": list(np.arange(100, 300, 10)),
-            "max_depth": list(np.arange(5, 30, 1)),
-            "min_samples_split": list(np.arange(2, 10, 2))
+            "n_estimators": list(np.arange(100, 501, 50)),
+            "max_depth": list(np.arange(3, 31, 1)),
+            "min_samples_split": list(np.arange(2, 11, 1)),
+            "min_samples_leaf": list(np.arange(1, 6, 1)),
+            "bootstrap": [True, False]
         },
         "XGBoost": {
-            "learning_rate": list(np.arange(0.001, 0.1, 0.001)),
-            "n_estimators": list(np.arange(100, 300, 10)),
-            "max_depth": list(np.arange(5, 30, 1)),
-            "gamma": list(np.arange(0.1, 10, 0.1))
+            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
+            "n_estimators": list(np.arange(50, 501, 50)),
+            "max_depth": list(np.arange(3, 16, 1)),
+            "gamma": list(np.linspace(0, 10, 21)),
+            "subsample": list(np.linspace(0.6, 1.0, 5)),
+            "colsample_bytree": list(np.linspace(0.6, 1.0, 5))
+        },
+        "LightGBM": {
+            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
+            "n_estimators": list(np.arange(50, 501, 50)),
+            "num_leaves": list(np.arange(31, 256, 25)),
+            "max_depth": list(np.arange(-1, 17, 1)),
+            "min_child_samples": list(np.arange(5, 51, 5))
         },
         "LogisticRegression": {
-            "C": list(np.arange(0.1, 10, 0.1))
+            "C": list(np.logspace(-2, 2, 10)),
+            "solver": ["lbfgs", "sag", "saga"],
+            "penalty": ["l2", "none"]
         }
     }
 }
@@ -27,28 +40,42 @@ REGRESSION_CONFIG = {
     "default_metric": "rmse",
     "models": {
         "RandomForest": {
-            "n_estimators": list(np.arange(100, 300, 10)),
-            "max_depth": list(np.arange(5, 30, 1)),
-            "min_samples_split": list(np.arange(2, 10, 2))
+            "n_estimators": list(np.arange(100, 501, 50)),
+            "max_depth": list(np.arange(3, 31, 1)),
+            "min_samples_split": list(np.arange(2, 11, 1)),
+            "min_samples_leaf": list(np.arange(1, 6, 1)),
+            "bootstrap": [True, False]
         },
         "XGBoost": {
-            "learning_rate": list(np.arange(0.001, 0.1, 0.001)),
-            "n_estimators": list(np.arange(100, 300, 10)),
-            "max_depth": list(np.arange(5, 30, 1)),
-            "gamma": list(np.arange(0.1, 10, 0.1))
+            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
+            "n_estimators": list(np.arange(50, 501, 50)),
+            "max_depth": list(np.arange(3, 16, 1)),
+            "gamma": list(np.linspace(0, 10, 21)),
+            "subsample": list(np.linspace(0.6, 1.0, 5)),
+            "colsample_bytree": list(np.linspace(0.6, 1.0, 5))
+        },
+        "LightGBM": {
+            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
+            "n_estimators": list(np.arange(50, 501, 50)),
+            "num_leaves": list(np.arange(31, 256, 25)),
+            "max_depth": list(np.arange(-1, 17, 1)),
+            "min_child_samples": list(np.arange(5, 51, 5))
         },
         "LinearRegression": {},
         "Ridge": {
-            "alpha": list(np.arange(0.1, 10, 0.1))
+            "alpha": list(np.logspace(-2, 2, 10))  # 0.01..100
         },
         "Lasso": {
-            "alpha": list(np.arange(0.1, 10, 0.1))
+            "alpha": list(np.logspace(-2, 2, 10))  # 0.01..100
         }
     }
 }
 
 
 def get_config(task: str):
+    """
+    Returns the configuration dictionary for a given task type.
+    """
     if task == Task.CLASSIFICATION:
         return CLASSIFICATION_CONFIG
     elif task == Task.REGRESSION:

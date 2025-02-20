@@ -17,7 +17,7 @@ class BaseOptimizer(ABC):
             metric: str - scoring function (if None, defaults to value in config based on task)
             verbose: bool - whether to print detailed info (default False)
             cv_folds: int - number of cross-validation folds (default 10)
-            config: dict - configuration dictionary (e.g., imported from automl.config)
+            config: dict - configuration dictionary (e.g., from automl.config)
         """
         self.task = task
         self.time_budget = time_budget
@@ -25,7 +25,6 @@ class BaseOptimizer(ABC):
         self.cv_folds = cv_folds
         self.config = config or {}
 
-        # Set default metric based on task if not provided.
         if metric is None:
             if self.task == Task.CLASSIFICATION:
                 self.metric = self.config.get("default_metric", "accuracy")
@@ -35,28 +34,92 @@ class BaseOptimizer(ABC):
                 self.metric = "accuracy"
         else:
             self.metric = metric
+
         print(f"Using metric: {self.metric}")
 
-        # Expect configuration to define available models and their hyperparameter ranges.
         self.models_config = self.config.get("models", {})
         self.optimal_model = None
         self.optimal_hyperparameters = {}
         self.metric_value = None
 
+    def build_model(self, candidate_params: dict):
+        """
+        Build a model instance given:
+            candidate_params["model"] -> a string of the model name
+            plus any required hyperparameters.
+
+        This method handles classification vs regression automatically.
+        """
+        from automl.enums import Task
+
+        model_name = candidate_params["model"]
+        model_lower = model_name.lower()
+
+        if model_lower == "randomforest":
+            from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+            ModelClass = RandomForestClassifier if self.task == Task.CLASSIFICATION else RandomForestRegressor
+            model = ModelClass(
+                n_estimators=candidate_params.get("n_estimators"),
+                max_depth=candidate_params.get("max_depth"),
+                min_samples_split=candidate_params.get("min_samples_split")
+            )
+        elif model_lower == "xgboost":
+            from xgboost import XGBClassifier, XGBRegressor
+            ModelClass = XGBClassifier if self.task == Task.CLASSIFICATION else XGBRegressor
+            model = ModelClass(
+                learning_rate=candidate_params.get("learning_rate"),
+                n_estimators=candidate_params.get("n_estimators"),
+                max_depth=candidate_params.get("max_depth"),
+                gamma=candidate_params.get("gamma"),
+            )
+        elif model_lower == "logisticregression":
+            from sklearn.linear_model import LogisticRegression
+            model = LogisticRegression(
+                C=candidate_params.get("C")
+            )
+        elif model_lower == "linearregression":
+            from sklearn.linear_model import LinearRegression
+            model = LinearRegression()
+        elif model_lower == "ridge":
+            from sklearn.linear_model import Ridge
+            model = Ridge(alpha=candidate_params.get("alpha"))
+        elif model_lower == "lasso":
+            from sklearn.linear_model import Lasso
+            model = Lasso(alpha=candidate_params.get("alpha"))
+        elif model_lower == "lightgbm":
+            import lightgbm as lgb
+            ModelClass = lgb.LGBMClassifier if self.task == Task.CLASSIFICATION else lgb.LGBMRegressor
+            model = ModelClass(
+                learning_rate=candidate_params.get("learning_rate"),
+                n_estimators=candidate_params.get("n_estimators"),
+                num_leaves=candidate_params.get("num_leaves"),
+                max_depth=candidate_params.get("max_depth"),
+                min_child_samples=candidate_params.get("min_child_samples"),
+                verbose=-1
+            )
+        else:
+            raise ValueError(f"Unsupported model: {model_name}")
+
+        return model
+
     def evaluate_candidate(self, model_builder, candidate_params, X, y):
         """
-        Unified evaluation: Builds a model using the given candidate parameters,
-        performs cross-validation, and returns the average score.
+        Builds a model (via model_builder), performs cross-validation,
+        and returns the average score.
         """
         model = model_builder(candidate_params)
+
         metric = self.metric
         if metric == "rmse":
             metric = "neg_root_mean_squared_error"
+
         scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
         avg_score = scores.mean()
+
         if self.verbose:
             print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
-            return avg_score
+    
+        return avg_score
     
     @abstractmethod
     def fit(self, X, y):
