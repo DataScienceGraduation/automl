@@ -28,7 +28,7 @@ class BayesianOptimizer(BaseOptimizer):
         config = get_config(task)
         super().__init__(task, time_budget, metric=None, verbose=verbose, config=config)
 
-        self.surrogate_model = GaussianProcessSurrogate(task=task)
+        self.surrogate_model = surrogate_model
         self.acquisition_function = acquisition_function
 
         self.state_space = self.models_config

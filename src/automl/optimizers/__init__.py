@@ -1,4 +1,4 @@
 from .base_optimizer import BaseOptimizer
 from .bayesian_optimizer import BayesianOptimizer
 from .random_search_optimizer import RandomSearchOptimizer
-from .bayesian_optimizer_hyperband import bayesian_optimizer_hyperband
+# from .bayesian_optimizer_hyperband import bayesian_optimizer_hyperband

@@ -47,3 +47,9 @@ docs/_build/
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+# Datasets
+datasets/
+new_datasets/
+saved_surrogates/
+dataset_statistics/
