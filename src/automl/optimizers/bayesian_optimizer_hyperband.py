@@ -8,7 +8,6 @@ from sklearn.preprocessing import LabelEncoder
 from automl.config import get_config
 from automl.enums import Task
 import pandas as pd
-from celery import shared_task
 from automl.optimizers import RandomSearchOptimizer
 from automl.enums import Task, Metric
 from automl.functions import createPipeline
