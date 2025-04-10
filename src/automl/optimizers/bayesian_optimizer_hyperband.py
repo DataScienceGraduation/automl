@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class bayesian_optimizer_hyperband(BaseOptimizer):
+class BayesianOptimizerHyperband(BaseOptimizer):
     def __init__(self, task, time_budget, eta=3, surrogate_model=GaussianProcessSurrogate(), acquisition_function=ExpectedImprovement(), verbose=False):
         """
         Parameters:
