@@ -78,7 +78,7 @@ class BayesianOptimizer(BaseOptimizer):
         start_time = time.time()
         logger.info("Starting Bayesian optimization with a time budget of %d seconds", self.time_budget)
 
-        num_initial_samples = 5
+        num_initial_samples = 20
         for i in range(num_initial_samples):
             candidate = self._generate_candidate()
             score = self.evaluate_candidate(self.build_model, candidate, X, y)
@@ -112,6 +112,10 @@ class BayesianOptimizer(BaseOptimizer):
                 candidates_vec, self.surrogate_model, self.best_score
             )
             best_candidate = candidates[np.argmax(acquisition_values)]
+            max_acquisition_value = np.max(acquisition_values)
+            if max_acquisition_value < 0.001:
+                logger.info("No promising candidates found; stopping optimization.")
+                break
 
             score = self.evaluate_candidate(self.build_model, best_candidate, X, y)
             history.append((best_candidate, score))

@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
             task = Task.REGRESSION
         
-            optimizer = BayesianOptimizer(task=task, time_budget=10)
+            optimizer = BayesianOptimizer(task=task, time_budget=3600)
 
             start_time = time.time()
             final_model = optimizer.fit(X, y)
