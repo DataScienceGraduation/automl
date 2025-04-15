@@ -32,12 +32,14 @@ for task_id in suite.tasks:
         df.columns = df.columns.str.replace(')', '')
         df.columns = df.columns.str.replace('.', '_')
         df.columns = df.columns.str.replace('/', '_')
+        # replace any special characters with underscores
+        df.columns = df.columns.str.replace(r'[^a-zA-Z0-9_]', '_', regex=True)
 
         # rename the target variable
         target_variable = dataset.default_target_attribute
         df.rename(columns={target_variable: 'target'}, inplace=True)
-        # check if dataset size is greater than 30mb
-        if df.memory_usage(deep=True).sum() > 30 * 1024 * 1024:
+        # check if dataset size is greater than 70mb in memory
+        if df.memory_usage(deep=True).sum() > 70 * 1024 * 1024:
             print(f"Skipping dataset {dataset.name} due to size.")
             continue
 
