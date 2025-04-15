@@ -52,3 +52,4 @@ tzdata==2025.1
     #   pandas
 xgboost==2.1.1
     # via automl (pyproject.toml)
+openml
