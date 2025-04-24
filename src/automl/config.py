@@ -71,6 +71,39 @@ REGRESSION_CONFIG = {
     }
 }
 
+TIME_SERIES_CONFIG = {
+    "default_metric": "rmse",
+    "models": {
+        "RandomForest": {
+            "n_estimators": list(np.arange(100, 501, 50)),
+            "max_depth": list(np.arange(3, 31, 1)),
+            "min_samples_split": list(np.arange(2, 11, 1)),
+            "min_samples_leaf": list(np.arange(1, 6, 1)),
+            "bootstrap": [True, False]
+        },
+        "XGBoost": {
+            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
+            "n_estimators": list(np.arange(50, 501, 50)),
+            "max_depth": list(np.arange(3, 16, 1)),
+            "gamma": list(np.linspace(0, 10, 21)),
+            "subsample": list(np.linspace(0.6, 1.0, 5)),
+            "colsample_bytree": list(np.linspace(0.6, 1.0, 5))
+        },
+        "LightGBM": {
+            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
+            "n_estimators": list(np.arange(50, 501, 50)),
+            "num_leaves": list(np.arange(31, 256, 25)),
+            "max_depth": list(np.arange(-1, 17, 1)),
+            "min_child_samples": list(np.arange(5, 51, 5))
+        },
+        "ARIMA": {
+            "p": list(np.arange(0, 7, 1)),
+            "d": list(np.arange(0, 3, 1)),
+            "q": list(np.arange(0, 7, 1)),
+        }
+    }
+}
+
 
 def get_config(task: str):
     """
@@ -80,5 +113,7 @@ def get_config(task: str):
         return CLASSIFICATION_CONFIG
     elif task == Task.REGRESSION:
         return REGRESSION_CONFIG
+    elif task == Task.TIME_SERIES:
+        return TIME_SERIES_CONFIG
     else:
         raise ValueError("Unsupported task type")

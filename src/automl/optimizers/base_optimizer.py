@@ -30,6 +30,8 @@ class BaseOptimizer(ABC):
                 self.metric = self.config.get("default_metric", "accuracy")
             elif self.task == Task.REGRESSION:
                 self.metric = self.config.get("default_metric", "rmse")
+            elif self.task == Task.TIME_SERIES:
+                self.metric = self.config.get("default_metric", "rmse")
             else:
                 self.metric = "accuracy"
         else:
@@ -96,6 +98,16 @@ class BaseOptimizer(ABC):
                 max_depth=candidate_params.get("max_depth"),
                 min_child_samples=candidate_params.get("min_child_samples"),
                 verbose=-1
+            )
+        elif model_lower == "arima":
+            from statsmodels.tsa.arima.model import ARIMA
+            ModelClass = ARIMA if self.task == Task.TIME_SERIES else None
+            model = ModelClass(
+                order=(
+                    candidate_params.get("p"),
+                    candidate_params.get("d"),
+                    candidate_params.get("q")
+                )
             )
         else:
             raise ValueError(f"Unsupported model: {model_name}")
