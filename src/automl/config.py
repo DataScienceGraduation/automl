@@ -104,6 +104,28 @@ TIME_SERIES_CONFIG = {
     }
 }
 
+CLUSTERING_CONFIG = {
+    "default_metric": "silhouette",
+    "models": {
+        "KMeans": {
+            "n_clusters": list(np.arange(2, 11, 1)),
+            "random_state": [42]
+        },
+        "DBSCAN": {
+            "eps": list(np.linspace(0.1, 1.0, 10)),
+            "min_samples": list(np.arange(1, 11, 1))
+        },
+        "AgglomerativeClustering": {
+            "n_clusters": list(np.arange(2, 11, 1)),
+            "linkage": ["ward", "complete", "average"],
+            "affinity": ["euclidean", "manhattan"]
+        },
+        "GaussianMixture": {
+            "n_components": list(np.arange(1, 11, 1)),
+            "covariance_type": ["full", "tied", "diag", "spherical"]
+        }
+    }
+}
 
 def get_config(task: str):
     """
@@ -115,5 +137,7 @@ def get_config(task: str):
         return REGRESSION_CONFIG
     elif task == Task.TIME_SERIES:
         return TIME_SERIES_CONFIG
+    elif task == Task.CLUSTERING:
+        return CLUSTERING_CONFIG
     else:
         raise ValueError("Unsupported task type")

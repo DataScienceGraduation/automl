@@ -32,8 +32,9 @@ class BaseOptimizer(ABC):
                 self.metric = self.config.get("default_metric", "rmse")
             elif self.task == Task.TIME_SERIES:
                 self.metric = self.config.get("default_metric", "rmse")
-            else:
-                self.metric = "accuracy"
+            elif self.task == Task.CLUSTERING:
+                self.metric = self.config.get("default_metric", "silhouette_score")
+
         else:
             self.metric = metric
 
@@ -108,6 +109,31 @@ class BaseOptimizer(ABC):
                     candidate_params.get("d"),
                     candidate_params.get("q")
                 )
+            )
+        elif model_lower == "Kmeans":
+            from sklearn.cluster import KMeans
+            model = KMeans(
+                n_clusters=candidate_params.get("n_clusters"),
+                random_state=candidate_params.get("random_state")
+            )
+        elif model_lower == "DBSCAN":
+            from sklearn.cluster import DBSCAN
+            model = DBSCAN(
+                eps=candidate_params.get("eps"),
+                min_samples=candidate_params.get("min_samples")
+            )
+        elif model_lower == "GaussianMixture":  
+            from sklearn.mixture import GaussianMixture
+            model = GaussianMixture(
+                n_components=candidate_params.get("n_components"),
+                covariance_type=candidate_params.get("covariance_type")
+            )
+        elif model_lower == "agglomerative":
+            from sklearn.cluster import AgglomerativeClustering
+            model = AgglomerativeClustering(
+                n_clusters=candidate_params.get("n_clusters"),
+                affinity=candidate_params.get("affinity"),
+                linkage=candidate_params.get("linkage")
             )
         else:
             raise ValueError(f"Unsupported model: {model_name}")

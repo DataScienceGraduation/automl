@@ -35,3 +35,5 @@ class Metric(Enum):
     BIC_AIC = 14
     MSE = 15
     R2 = 16
+    Adjusted_R2 = 17
+    
