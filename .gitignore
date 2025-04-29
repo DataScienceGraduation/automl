@@ -53,3 +53,9 @@ datasets/
 new_datasets/
 saved_surrogates/
 dataset_statistics/
+
+# Cursor
+.cursor/ 
+
+# VSCode
+.vscode/
