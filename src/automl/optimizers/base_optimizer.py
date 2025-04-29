@@ -33,8 +33,9 @@ class BaseOptimizer(ABC):
             elif self.task == Task.TIME_SERIES:
                 self.metric = self.config.get("default_metric", "rmse")
             elif self.task == Task.CLUSTERING:
-                self.metric = self.config.get("default_metric", "silhouette_score")
-
+                self.metric = self.config.get("default_metric", "silhouette")
+            else:
+                self.metric = "accuracy"
         else:
             self.metric = metric
 
@@ -45,7 +46,7 @@ class BaseOptimizer(ABC):
         self.optimal_hyperparameters = {}
         self.metric_value = None
 
-    def build_model(self, candidate_params: dict):
+    def build_model(self, candidate_params: dict, y=None): # Added y=None for the ARIMA and SARIMA case
         """
         Build a model instance given:
             candidate_params["model"] -> a string of the model name
@@ -104,10 +105,31 @@ class BaseOptimizer(ABC):
             from statsmodels.tsa.arima.model import ARIMA
             ModelClass = ARIMA if self.task == Task.TIME_SERIES else None
             model = ModelClass(
+                endog=y,
                 order=(
                     candidate_params.get("p"),
                     candidate_params.get("d"),
                     candidate_params.get("q")
+                )
+            )
+        elif model_lower == "sarimax":
+            from statsmodels.tsa.statespace.sarimax import SARIMAX
+            ModelClass = SARIMAX if self.task == Task.TIME_SERIES else None
+            model = ModelClass(
+                endog=y,
+                enforce_stationarity=False,
+                enforce_invertibility=False,
+                order=(
+
+                    candidate_params.get("p"),
+                    candidate_params.get("d"),
+                    candidate_params.get("q")
+                ),
+                seasonal_order=(
+                    candidate_params.get("P"),
+                    candidate_params.get("D"),
+                    candidate_params.get("Q"),
+                    candidate_params.get("s")
                 )
             )
         elif model_lower == "Kmeans":
@@ -121,19 +143,6 @@ class BaseOptimizer(ABC):
             model = DBSCAN(
                 eps=candidate_params.get("eps"),
                 min_samples=candidate_params.get("min_samples")
-            )
-        elif model_lower == "GaussianMixture":  
-            from sklearn.mixture import GaussianMixture
-            model = GaussianMixture(
-                n_components=candidate_params.get("n_components"),
-                covariance_type=candidate_params.get("covariance_type")
-            )
-        elif model_lower == "agglomerative":
-            from sklearn.cluster import AgglomerativeClustering
-            model = AgglomerativeClustering(
-                n_clusters=candidate_params.get("n_clusters"),
-                affinity=candidate_params.get("affinity"),
-                linkage=candidate_params.get("linkage")
             )
         else:
             raise ValueError(f"Unsupported model: {model_name}")
