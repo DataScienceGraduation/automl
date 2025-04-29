@@ -32,6 +32,8 @@ class BaseOptimizer(ABC):
                 self.metric = self.config.get("default_metric", "rmse")
             elif self.task == Task.TIME_SERIES:
                 self.metric = self.config.get("default_metric", "rmse")
+            elif self.task == Task.CLUSTERING:
+                self.metric = self.config.get("default_metric", "silhouette")
             else:
                 self.metric = "accuracy"
         else:
@@ -129,6 +131,18 @@ class BaseOptimizer(ABC):
                     candidate_params.get("Q"),
                     candidate_params.get("s")
                 )
+            )
+        elif model_lower == "Kmeans":
+            from sklearn.cluster import KMeans
+            model = KMeans(
+                n_clusters=candidate_params.get("n_clusters"),
+                random_state=candidate_params.get("random_state")
+            )
+        elif model_lower == "DBSCAN":
+            from sklearn.cluster import DBSCAN
+            model = DBSCAN(
+                eps=candidate_params.get("eps"),
+                min_samples=candidate_params.get("min_samples")
             )
         else:
             raise ValueError(f"Unsupported model: {model_name}")

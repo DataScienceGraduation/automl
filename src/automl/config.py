@@ -91,7 +91,6 @@ TIME_SERIES_CONFIG = {
     }
 }
 
-<<<<<<< HEAD
 CLUSTERING_CONFIG = {
     "default_metric": "silhouette",
     "models": {
@@ -105,8 +104,6 @@ CLUSTERING_CONFIG = {
         },
     }
 }
-=======
->>>>>>> b997f23f419e69a11232bdab3a6219625062a99e
 
 def get_config(task: str):
     """
