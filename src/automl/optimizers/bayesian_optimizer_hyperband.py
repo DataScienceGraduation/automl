@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 
 class BayesianOptimizerHyperband(BaseOptimizer):
-    def __init__(self, task, time_budget, eta=3, surrogate_model=GaussianProcessSurrogate(), acquisition_function=ExpectedImprovement(), verbose=False):
+    def __init__(self, task, time_budget, eta=3, surrogate_model=None, acquisition_function=ExpectedImprovement(), verbose=False):
         """
         Parameters:
             task (str): "classification", "regression", "forecasting", or "clustering"
@@ -33,7 +33,7 @@ class BayesianOptimizerHyperband(BaseOptimizer):
         config = get_config(task)
         super().__init__(task, time_budget, metric=None, verbose=verbose, config=config)
 
-        self.surrogate_model = surrogate_model
+        self.surrogate_model = surrogate_model if surrogate_model is not None else GaussianProcessSurrogate(task=task)
         self.acquisition_function = acquisition_function
         self.state_space = self.models_config
         self.eta = eta  # Hyperband reduction factor
