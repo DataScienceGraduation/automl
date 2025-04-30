@@ -115,5 +115,7 @@ def get_config(task: str):
         return REGRESSION_CONFIG
     elif task == Task.TIME_SERIES:
         return TIME_SERIES_CONFIG
+    elif task == Task.CLUSTERING:
+        return CLUSTERING_CONFIG
     else:
         raise ValueError("Unsupported task type")

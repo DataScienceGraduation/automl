@@ -5,18 +5,28 @@ from .preprocess import Preprocess
 from .preprocess.TimeSeriesPreprocessor import TimeSeriesPreprocessor
 
 
-def createPipeline(df: DataFrame, target_variable: str, task=None) -> Pipeline:
+def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pipeline:
     print("Creating the pipeline")
     if task == "time series":
         preprocessor = TimeSeriesPreprocessor(target_column=target_variable)
     else:
         preprocessor = Preprocess(target_variable=target_variable)
 
-    pipeline = Pipeline([
-        ('preprocess', preprocessor(target_variable=target_variable)),
-        ('feature_engineer', FeatureEngineer(target_variable=target_variable)),
-    ])
+    # For clustering, we don't need feature engineering with target variable
+    if task == "clustering":
+        pipeline = Pipeline([
+            ('preprocess', preprocessor)
+        ])
+    else:
+        pipeline = Pipeline([
+            ('preprocess', preprocessor),
+            ('feature_engineer', FeatureEngineer(target_variable=target_variable)),
+        ])
 
-    pipeline.fit(df, df[target_variable])
+    # For clustering, we don't need to fit with target variable
+    if task == "clustering":
+        pipeline.fit(df)
+    else:
+        pipeline.fit(df, df[target_variable])
 
     return pipeline

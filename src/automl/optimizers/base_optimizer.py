@@ -132,13 +132,13 @@ class BaseOptimizer(ABC):
                     candidate_params.get("s")
                 )
             )
-        elif model_lower == "Kmeans":
+        elif model_lower == "kmeans":
             from sklearn.cluster import KMeans
             model = KMeans(
                 n_clusters=candidate_params.get("n_clusters"),
                 random_state=candidate_params.get("random_state")
             )
-        elif model_lower == "DBSCAN":
+        elif model_lower == "dbscan":
             from sklearn.cluster import DBSCAN
             model = DBSCAN(
                 eps=candidate_params.get("eps"),
@@ -149,24 +149,47 @@ class BaseOptimizer(ABC):
 
         return model
 
-    def evaluate_candidate(self, model_builder, candidate_params, X, y):
+    def evaluate_candidate(self, model_builder, candidate_params, X, y=None):
         """
-        Builds a model (via model_builder), performs cross-validation,
-        and returns the average score.
+        Builds a model (via model_builder) and evaluates it.
+        For supervised learning tasks, performs cross-validation.
+        For clustering tasks, uses silhouette score or other clustering metrics.
         """
         model = model_builder(candidate_params)
 
-        metric = self.metric
-        if metric == "rmse":
-            metric = "neg_root_mean_squared_error"
+        if self.task == Task.CLUSTERING:
+            # For clustering, we don't use cross-validation
+            from sklearn.metrics import silhouette_score
+            model.fit(X)
+            labels = model.labels_
+            
+            # Handle DBSCAN noise points (-1 labels)
+            if -1 in labels:
+                # Remove noise points for silhouette score calculation
+                mask = labels != -1
+                if sum(mask) > 0:  # Only calculate if we have non-noise points
+                    score = silhouette_score(X[mask], labels[mask])
+                else:
+                    score = -1  # Worst possible score if all points are noise
+            else:
+                score = silhouette_score(X, labels)
+            
+            if self.verbose:
+                print(f"Evaluated candidate {candidate_params} => Score: {score:.4f}")
+            return score
+        else:
+            # For supervised learning tasks, use cross-validation
+            metric = self.metric
+            if metric == "rmse":
+                metric = "neg_root_mean_squared_error"
 
-        scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
-        avg_score = scores.mean()
+            scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
+            avg_score = scores.mean()
 
-        if self.verbose:
-            print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
-    
-        return avg_score
+            if self.verbose:
+                print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
+        
+            return avg_score
     
     @abstractmethod
     def fit(self, X, y):
