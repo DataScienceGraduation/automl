@@ -8,7 +8,10 @@ from sklearn.model_selection import TimeSeriesSplit
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 class BaseOptimizer(ABC):
     def __init__(self, task, time_budget, metric=None, verbose=False, cv_folds=10, config=None):
@@ -137,62 +140,63 @@ class BaseOptimizer(ABC):
         - Clustering: silhouette score
         - Time Series: negative RMSE on forecast
         """
-        if self.task == Task.CLUSTERING:
-            from sklearn.metrics import silhouette_score
-            model = model_builder(candidate_params)
-            model.fit(X)
-            labels = model.labels_
+        try:
+            if self.task == Task.CLUSTERING:
+                from sklearn.metrics import silhouette_score
+                model = model_builder(candidate_params)
+                model.fit(X)
+                labels = model.labels_
 
-            if -1 in labels:
-                mask = labels != -1
-                if np.sum(mask) > 0:
-                    score = silhouette_score(X[mask], labels[mask])
+                if -1 in labels:
+                    mask = labels != -1
+                    if np.sum(mask) > 0:
+                        score = silhouette_score(X[mask], labels[mask])
+                    else:
+                        score = -1
                 else:
-                    score = -1
-            else:
-                score = silhouette_score(X, labels)
+                    score = silhouette_score(X, labels)
 
-            if self.verbose:
-                print(f"Evaluated clustering {candidate_params} => Score: {score:.4f}")
-            return score
-
-        elif self.task == Task.TIME_SERIES:
-            n_splits = 2 
-            tscv = TimeSeriesSplit(n_splits=n_splits)
-            rmse_scores = []
-
-            for train_index, test_index in tscv.split(y):
-                train, test = y[train_index], y[test_index]
-
-                model = self.build_model(candidate_params, y=train) 
-                model_fit = model.fit()
-
-               
-                forecast_horizon = len(test) 
-                y_pred = model_fit.forecast(steps=forecast_horizon)
-                rmse = np.sqrt(np.mean((test - y_pred) ** 2))
-                rmse_scores.append(rmse)
                 if self.verbose:
-                    print(f"Evaluated time series {candidate_params} => RMSE for fold: {rmse:.4f}")
-            avg_rmse = np.mean(rmse_scores)
-            score = -avg_rmse  
-            if self.verbose:
-                print(f"Average RMSE across {n_splits} folds: {avg_rmse:.4f}")
+                    print(f"Evaluated clustering {candidate_params} => Score: {score:.4f}")
+                return score
 
-            return score
+            elif self.task == Task.TIME_SERIES:
+                n_splits = 2 
+                tscv = TimeSeriesSplit(n_splits=n_splits)
+                rmse_scores = []
 
-        else:
-            model = model_builder(candidate_params)
-            metric = self.metric
-            if metric == "rmse":
-                metric = "neg_root_mean_squared_error"
+                for train_index, test_index in tscv.split(y):
+                    train, test = y[train_index], y[test_index]
+                    model = self.build_model(candidate_params, y=train) 
+                    model_fit = model.fit()
+                    forecast_horizon = len(test) 
+                    y_pred = model_fit.forecast(steps=forecast_horizon)
+                    rmse = np.sqrt(np.mean((test - y_pred) ** 2))
+                    rmse_scores.append(rmse)
+                    if self.verbose:
+                        print(f"Evaluated time series {candidate_params} => RMSE for fold: {rmse:.4f}")
+                avg_rmse = np.mean(rmse_scores)
+                score = -avg_rmse  
+                if self.verbose:
+                    print(f"Average RMSE across {n_splits} folds: {avg_rmse:.4f}")
 
-            scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
-            avg_score = scores.mean()
+                return score
 
-            if self.verbose:
-                print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
-            return avg_score
+            else:
+                model = model_builder(candidate_params)
+                metric = self.metric
+                if metric == "rmse":
+                    metric = "neg_root_mean_squared_error"
+
+                scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
+                avg_score = scores.mean()
+
+                if self.verbose:
+                    print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
+                return avg_score
+        except Exception as e:
+            logger.info(f"model failed fitting with error {e}")
+            return -np.inf
 
     @abstractmethod
     def fit(self, X, y):
