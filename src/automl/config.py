@@ -75,9 +75,9 @@ TIME_SERIES_CONFIG = {
     "default_metric": "rmse",
     "models": {
         "ARIMA": {
-            "p": list(np.arange(0, 7, 1)),
-            "d": list(np.arange(0, 3, 1)),
-            "q": list(np.arange(0, 7, 1)),
+            "p": list(np.arange(0, 5, 1)),
+            "d": list(np.arange(0, 2, 1)),
+            "q": list(np.arange(0, 5, 1)),
         },
         "SARIMAX": {
             "p": list(np.arange(0, 7, 1)),

@@ -78,6 +78,10 @@ class RandomSearchOptimizer(BaseOptimizer):
                 # For regression, lower RMSE is better
                 if score < self.best_score:
                     self.best_score = score
+            elif self.task == Task.TIME_SERIES:
+                # For time series, lower RMSE is better
+                if score < self.best_score:
+                    self.best_score = score
             else:
                 # For classification, higher accuracy is better
                 if score > self.best_score:
@@ -87,11 +91,19 @@ class RandomSearchOptimizer(BaseOptimizer):
             logger.info("Candidate: %s yielded score: %.4f | Best score: %.4f | Time left: %.2fs",
                         candidate, score, self.best_score, remaining_time)
 
-        best_params = max(history, key=lambda item: item[1])[0] if self.task != Task.REGRESSION else min(history, key=lambda item: item[1])[0]
+        if self.task == Task.REGRESSION or self.task == Task.TIME_SERIES:
+            best_params = min(history, key=lambda item: item[1])[0] 
+        else:
+            best_params = max(history, key=lambda item: item[1])[0]
+        
         logger.info("Best candidate found: %s", best_params)
 
-        final_model = self.build_model(best_params)
-        final_model.fit(X)
+        if self.task == Task.TIME_SERIES:
+            final_model = self.build_model(best_params, y=y)
+            final_model = final_model.fit()
+        else:
+            final_model = self.build_model(best_params)
+            final_model.fit(X, y)
 
         self.optimal_model = final_model
         self.metric_value = self.best_score
@@ -100,16 +112,39 @@ class RandomSearchOptimizer(BaseOptimizer):
                     final_model.__class__.__name__, self.best_score)
         return final_model
     
-if __name__ == '__main__':
-    df = pd.read_csv(r'D:\College\Grad\AutoML\data_clustering\fish_data.csv')
-    print(df.head())
-    pl = createPipeline(df, task="Clustering")
-    df = pl.transform(df)
-    hpo = RandomSearchOptimizer(task = Task.CLUSTERING, time_budget=300)
+# if __name__ == '__main__':
+#     df = pd.read_csv(r'D:\College\Grad\AutoML\data_clustering\fish_data.csv')
+#     print(df.head())
+#     pl = createPipeline(df, task="Clustering")
+#     df = pl.transform(df)
+#     hpo = RandomSearchOptimizer(task = Task.CLUSTERING, time_budget=300)
 
-    # hpo = bayesian_optimizer_hyperband(task = Task.CLASSIFICATION, time_budget=150)
-    X = df.drop(columns=["species"])
-    # Y = df['Outcome']
-    hpo.fit(X)
-    accuracy = hpo.get_metric_value()
-    print(accuracy)
+#     # hpo = bayesian_optimizer_hyperband(task = Task.CLASSIFICATION, time_budget=150)
+#     X = df.drop(columns=["species"])
+#     # Y = df['Outcome']
+#     hpo.fit(X)
+#     accuracy = hpo.get_metric_value()
+#     print(accuracy)
+
+if __name__ == "__main__":
+    df = pd.read_csv('/Users/malakabouelkhair/Desktop/Automl/automl/Train.csv')
+    print(df.head())
+    print(len(df))
+
+    # Preprocessing pipeline
+    pl = createPipeline(df, target_variable='Sales_Quantity',task='time series')
+    df = pl.transform(df)
+    print(df.head())
+    print(len(df))
+
+    # Initialize optimizer
+    gps = RandomSearchOptimizer(task=Task.TIME_SERIES, time_budget=300)
+    print('fitting the model')
+
+    y = df['Sales_Quantity']
+
+    gps.fit(X=None, y=y)
+
+
+    rmse = gps.get_metric_value()
+    print(f"RMSE: {rmse}")
