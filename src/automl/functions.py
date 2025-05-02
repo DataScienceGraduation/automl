@@ -7,6 +7,10 @@ from .preprocess.TimeSeriesPreprocessor import TimeSeriesPreprocessor
 
 def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pipeline:
     print("Creating the pipeline")
+    print(task)
+    print(task)
+    print(task)
+    print(task)
     if task == "TimeSeries":
         preprocessor = TimeSeriesPreprocessor(target_column=target_variable)
     else:
