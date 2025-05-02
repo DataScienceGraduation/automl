@@ -12,8 +12,9 @@ def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pip
         preprocessor = TimeSeriesPreprocessor(target_column=target_variable)
         print("11")
     else:
-        preprocessor = Preprocess(target_variable=target_variable)
         print("12")
+        preprocessor = Preprocess(target_variable=target_variable)
+        print("13")
 
     # For clustering, we don't need feature engineering with target variable
     if task == "Clustering":
