@@ -103,7 +103,7 @@ class RandomSearchOptimizer(BaseOptimizer):
 if __name__ == '__main__':
     df = pd.read_csv(r'D:\College\Grad\AutoML\data_clustering\fish_data.csv')
     print(df.head())
-    pl = createPipeline(df, task="clustering")
+    pl = createPipeline(df, task="Clustering")
     df = pl.transform(df)
     hpo = RandomSearchOptimizer(task = Task.CLUSTERING, time_budget=300)
 

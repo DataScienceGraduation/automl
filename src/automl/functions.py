@@ -3,41 +3,39 @@ from pandas import DataFrame
 from .feature_engineer import FeatureEngineer
 from .preprocess import Preprocess
 from .preprocess.TimeSeriesPreprocessor import TimeSeriesPreprocessor
+import logging
 
+logger = logging.getLogger(__name__)
 
-def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pipeline:
-    print("Creating the pipeline")
+def createPipeline(df: DataFrame, target_variable: str = None, task: str = None) -> Pipeline:
+    logger.info(f"Creating pipeline for task: {task}")
+    
     if task == "TimeSeries":
+        logger.debug("Using TimeSeriesPreprocessor")
         preprocessor = TimeSeriesPreprocessor(target_column=target_variable)
     else:
+        logger.debug("Using standard Preprocess")
         preprocessor = Preprocess(target_variable=target_variable)
 
-    pipeline = Pipeline([
-        ('preprocess', preprocessor),
-        ('feature_engineer', FeatureEngineer(target_variable=target_variable)),
-    ])
-
-    if target_variable is not None:
-        pipeline.fit(df, df[target_variable])
-    else:
-        pipeline.fit(df)
-=======
     # For clustering, we don't need feature engineering with target variable
-    if task == "clustering":
+    if task == "Clustering":
+        logger.debug("Creating clustering pipeline without feature engineering")
         pipeline = Pipeline([
             ('preprocess', preprocessor)
         ])
     else:
+        logger.debug("Creating standard pipeline with feature engineering")
         pipeline = Pipeline([
             ('preprocess', preprocessor),
             ('feature_engineer', FeatureEngineer(target_variable=target_variable)),
         ])
 
     # For clustering, we don't need to fit with target variable
-    if task == "clustering":
+    if task == "Clustering":
+        logger.debug("Fitting pipeline for clustering task")
         pipeline.fit(df)
     else:
+        logger.debug("Fitting pipeline with target variable")
         pipeline.fit(df, df[target_variable])
->>>>>>> c2305604f1eb5fa17a289f13541c8762d14a3b4e
 
     return pipeline
