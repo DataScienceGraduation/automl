@@ -3,28 +3,28 @@ from pandas import DataFrame
 from .feature_engineer import FeatureEngineer
 from .preprocess import Preprocess
 from .preprocess.TimeSeriesPreprocessor import TimeSeriesPreprocessor
+import logging
 
+logger = logging.getLogger(__name__)
 
-def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pipeline:
-    print("Creating the pipeline")
+def createPipeline(df: DataFrame, target_variable: str = None, task: str = None) -> Pipeline:
+    logger.info(f"Creating pipeline for task: {task}")
+    
     if task == "TimeSeries":
-        print("10")
+        logger.debug("Using TimeSeriesPreprocessor")
         preprocessor = TimeSeriesPreprocessor(target_column=target_variable)
-        print("11")
     else:
-        print("12")
+        logger.debug("Using standard Preprocess")
         preprocessor = Preprocess(target_variable=target_variable)
-        print("13")
 
     # For clustering, we don't need feature engineering with target variable
     if task == "Clustering":
-        print("13")
+        logger.debug("Creating clustering pipeline without feature engineering")
         pipeline = Pipeline([
             ('preprocess', preprocessor)
         ])
-        print("14")
     else:
-        print("15")
+        logger.debug("Creating standard pipeline with feature engineering")
         pipeline = Pipeline([
             ('preprocess', preprocessor),
             ('feature_engineer', FeatureEngineer(target_variable=target_variable)),
@@ -32,12 +32,10 @@ def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pip
 
     # For clustering, we don't need to fit with target variable
     if task == "Clustering":
-        print("16")
+        logger.debug("Fitting pipeline for clustering task")
         pipeline.fit(df)
-        print("17")
     else:
-        print("18")
+        logger.debug("Fitting pipeline with target variable")
         pipeline.fit(df, df[target_variable])
-        print("19")
 
     return pipeline
