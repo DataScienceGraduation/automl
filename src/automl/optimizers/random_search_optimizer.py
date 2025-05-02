@@ -31,7 +31,7 @@ class RandomSearchOptimizer(BaseOptimizer):
         Random search hyperparameter optimizer.
 
         Parameters:
-            task (str): "classification" or "regression"
+            task (str): "classification", "regression", or "clustering"
             time_budget (int): time limit in seconds for searching optimal hyperparameters
             verbose (bool): whether to log detailed output (default False)
         """
@@ -52,10 +52,14 @@ class RandomSearchOptimizer(BaseOptimizer):
             candidate[param] = np.random.choice(values)
         return candidate
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray = None):
         """
         Perform random search to find the best hyperparameter configuration.
         Returns a trained model with those parameters.
+        
+        Parameters:
+            X: np.ndarray - Feature matrix
+            y: np.ndarray - Target values (not used for clustering)
         """
         history = []
         start_time = time.time()
@@ -63,22 +67,31 @@ class RandomSearchOptimizer(BaseOptimizer):
 
         while time.time() - start_time < self.time_budget:
             candidate = self._generate_candidate()
-            score = self.evaluate_candidate(self._build_model, candidate, X, y)
+            score = self.evaluate_candidate(self.build_model, candidate, X, y)
             history.append((candidate, score))
 
-            if (self.metric != "neg_mean_squared_error" and score > self.best_score) or \
-                    (self.metric == "neg_mean_squared_error" and score < self.best_score):
-                self.best_score = score
+            if self.task == Task.CLUSTERING:
+                # For clustering, higher silhouette score is better
+                if score > self.best_score:
+                    self.best_score = score
+            elif self.task == Task.REGRESSION:
+                # For regression, lower RMSE is better
+                if score < self.best_score:
+                    self.best_score = score
+            else:
+                # For classification, higher accuracy is better
+                if score > self.best_score:
+                    self.best_score = score
 
             remaining_time = self.time_budget - (time.time() - start_time)
             logger.info("Candidate: %s yielded score: %.4f | Best score: %.4f | Time left: %.2fs",
                         candidate, score, self.best_score, remaining_time)
 
-        best_params = max(history, key=lambda item: item[1])[0]
+        best_params = max(history, key=lambda item: item[1])[0] if self.task != Task.REGRESSION else min(history, key=lambda item: item[1])[0]
         logger.info("Best candidate found: %s", best_params)
 
         final_model = self.build_model(best_params)
-        final_model.fit(X, y)
+        final_model.fit(X)
 
         self.optimal_model = final_model
         self.metric_value = self.best_score
@@ -88,16 +101,15 @@ class RandomSearchOptimizer(BaseOptimizer):
         return final_model
     
 if __name__ == '__main__':
-    df = pd.read_csv(r'D:\1GRADUATION-PROJECT\Protoype\prototype-backend\automlapp\tests\diabetes.csv')
-    print(df)
-    pl = createPipeline(df, 'Outcome')
+    df = pd.read_csv(r'D:\College\Grad\AutoML\data_clustering\fish_data.csv')
+    print(df.head())
+    pl = createPipeline(df, task="clustering")
     df = pl.transform(df)
-    hpo = RandomSearchOptimizer(task = Task.CLASSIFICATION, time_budget=10)
+    hpo = RandomSearchOptimizer(task = Task.CLUSTERING, time_budget=300)
 
     # hpo = bayesian_optimizer_hyperband(task = Task.CLASSIFICATION, time_budget=150)
-    X = df.drop(columns=["Outcome"])
-    Y = df['Outcome']
-    hpo.fit(X,Y)
+    X = df.drop(columns=["species"])
+    # Y = df['Outcome']
+    hpo.fit(X)
     accuracy = hpo.get_metric_value()
     print(accuracy)
-    

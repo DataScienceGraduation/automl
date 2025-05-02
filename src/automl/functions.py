@@ -21,5 +21,23 @@ def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pip
         pipeline.fit(df, df[target_variable])
     else:
         pipeline.fit(df)
+=======
+    # For clustering, we don't need feature engineering with target variable
+    if task == "clustering":
+        pipeline = Pipeline([
+            ('preprocess', preprocessor)
+        ])
+    else:
+        pipeline = Pipeline([
+            ('preprocess', preprocessor),
+            ('feature_engineer', FeatureEngineer(target_variable=target_variable)),
+        ])
+
+    # For clustering, we don't need to fit with target variable
+    if task == "clustering":
+        pipeline.fit(df)
+    else:
+        pipeline.fit(df, df[target_variable])
+>>>>>>> c2305604f1eb5fa17a289f13541c8762d14a3b4e
 
     return pipeline
