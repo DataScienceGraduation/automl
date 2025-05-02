@@ -7,10 +7,6 @@ from .preprocess.TimeSeriesPreprocessor import TimeSeriesPreprocessor
 
 def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pipeline:
     print("Creating the pipeline")
-    print(task)
-    print(task)
-    print(task)
-    print(task)
     if task == "TimeSeries":
         preprocessor = TimeSeriesPreprocessor(target_column=target_variable)
     else:
@@ -28,7 +24,7 @@ def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pip
         ])
 
     # For clustering, we don't need to fit with target variable
-    if task == "clustering":
+    if task == "Clustering":
         pipeline.fit(df)
     else:
         pipeline.fit(df, df[target_variable])
