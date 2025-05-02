@@ -17,7 +17,7 @@ def createPipeline(df: DataFrame, target_variable: str = None, task=None) -> Pip
         preprocessor = Preprocess(target_variable=target_variable)
 
     # For clustering, we don't need feature engineering with target variable
-    if task == "clustering":
+    if task == "Clustering":
         pipeline = Pipeline([
             ('preprocess', preprocessor)
         ])
