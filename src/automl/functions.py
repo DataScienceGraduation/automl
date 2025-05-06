@@ -12,14 +12,14 @@ def createPipeline(df: DataFrame, target_variable: str = None, task: str = None)
     
     if task == "TimeSeries":
         logger.debug("Using TimeSeriesPreprocessor")
-        preprocessor = TimeSeriesPreprocessor(target_column=target_variable)
+        preprocessor = TimeSeriesPreprocessor(target_column=target_variable,date_format="%d/%m/%y")
     else:
         logger.debug("Using standard Preprocess")
         preprocessor = Preprocess(target_variable=target_variable)
 
     # For clustering, we don't need feature engineering with target variable
-    if task == "Clustering":
-        logger.debug("Creating clustering pipeline without feature engineering")
+    if task == "Clustering" or task=="TimeSeries":
+        logger.debug("Creating clustering and time_series pipeline without feature engineering")
         pipeline = Pipeline([
             ('preprocess', preprocessor)
         ])

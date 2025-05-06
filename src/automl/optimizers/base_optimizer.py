@@ -4,21 +4,17 @@ import numpy as np
 from automl import Task
 import time
 import logging
+from sklearn.model_selection import TimeSeriesSplit
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 class BaseOptimizer(ABC):
     def __init__(self, task, time_budget, metric=None, verbose=False, cv_folds=10, config=None):
-        """
-        Parameters:
-            task: str - e.g., "classification" or "regression"
-            time_budget: int - time allowed for optimization (in seconds)
-            metric: str - scoring function (if None, defaults to value in config based on task)
-            verbose: bool - whether to print detailed info (default False)
-            cv_folds: int - number of cross-validation folds (default 10)
-            config: dict - configuration dictionary (e.g., from automl.config)
-        """
         self.task = task
         self.time_budget = time_budget
         self.verbose = verbose
@@ -46,20 +42,11 @@ class BaseOptimizer(ABC):
         self.optimal_hyperparameters = {}
         self.metric_value = None
 
-    def build_model(self, candidate_params: dict, y=None): # Added y=None for the ARIMA and SARIMA case
-        """
-        Build a model instance given:
-            candidate_params["model"] -> a string of the model name
-            plus any required hyperparameters.
-
-        This method handles classification vs regression automatically.
-        """
+    def build_model(self, candidate_params: dict, y=None):
         from automl.enums import Task
+        model_name = candidate_params["model"].lower()
 
-        model_name = candidate_params["model"]
-        model_lower = model_name.lower()
-
-        if model_lower == "randomforest":
+        if model_name == "randomforest":
             from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
             ModelClass = RandomForestClassifier if self.task == Task.CLASSIFICATION else RandomForestRegressor
             model = ModelClass(
@@ -67,7 +54,7 @@ class BaseOptimizer(ABC):
                 max_depth=candidate_params.get("max_depth"),
                 min_samples_split=candidate_params.get("min_samples_split")
             )
-        elif model_lower == "xgboost":
+        elif model_name == "xgboost":
             from xgboost import XGBClassifier, XGBRegressor
             ModelClass = XGBClassifier if self.task == Task.CLASSIFICATION else XGBRegressor
             model = ModelClass(
@@ -76,21 +63,19 @@ class BaseOptimizer(ABC):
                 max_depth=candidate_params.get("max_depth"),
                 gamma=candidate_params.get("gamma"),
             )
-        elif model_lower == "logisticregression":
+        elif model_name == "logisticregression":
             from sklearn.linear_model import LogisticRegression
-            model = LogisticRegression(
-                C=candidate_params.get("C")
-            )
-        elif model_lower == "linearregression":
+            model = LogisticRegression(C=candidate_params.get("C"))
+        elif model_name == "linearregression":
             from sklearn.linear_model import LinearRegression
             model = LinearRegression()
-        elif model_lower == "ridge":
+        elif model_name == "ridge":
             from sklearn.linear_model import Ridge
             model = Ridge(alpha=candidate_params.get("alpha"))
-        elif model_lower == "lasso":
+        elif model_name == "lasso":
             from sklearn.linear_model import Lasso
             model = Lasso(alpha=candidate_params.get("alpha"))
-        elif model_lower == "lightgbm":
+        elif model_name == "lightgbm":
             import lightgbm as lgb
             ModelClass = lgb.LGBMClassifier if self.task == Task.CLASSIFICATION else lgb.LGBMRegressor
             model = ModelClass(
@@ -101,26 +86,23 @@ class BaseOptimizer(ABC):
                 min_child_samples=candidate_params.get("min_child_samples"),
                 verbose=-1
             )
-        elif model_lower == "arima":
+        elif model_name == "arima":
             from statsmodels.tsa.arima.model import ARIMA
-            ModelClass = ARIMA if self.task == Task.TIME_SERIES else None
-            model = ModelClass(
+            model = ARIMA(
                 endog=y,
                 order=(
                     candidate_params.get("p"),
                     candidate_params.get("d"),
                     candidate_params.get("q")
-                )
-            )
-        elif model_lower == "sarimax":
-            from statsmodels.tsa.statespace.sarimax import SARIMAX
-            ModelClass = SARIMAX if self.task == Task.TIME_SERIES else None
-            model = ModelClass(
-                endog=y,
+                ),
                 enforce_stationarity=False,
-                enforce_invertibility=False,
+                enforce_invertibility=False
+            )
+        elif model_name == "sarimax":
+            from statsmodels.tsa.statespace.sarimax import SARIMAX
+            model = SARIMAX(
+                endog=y,
                 order=(
-
                     candidate_params.get("p"),
                     candidate_params.get("d"),
                     candidate_params.get("q")
@@ -130,15 +112,17 @@ class BaseOptimizer(ABC):
                     candidate_params.get("D"),
                     candidate_params.get("Q"),
                     candidate_params.get("s")
-                )
+                ),
+                enforce_stationarity=False,
+                enforce_invertibility=False
             )
-        elif model_lower == "kmeans":
+        elif model_name == "kmeans":
             from sklearn.cluster import KMeans
             model = KMeans(
                 n_clusters=candidate_params.get("n_clusters"),
                 random_state=candidate_params.get("random_state")
             )
-        elif model_lower == "dbscan":
+        elif model_name == "dbscan":
             from sklearn.cluster import DBSCAN
             model = DBSCAN(
                 eps=candidate_params.get("eps"),
@@ -151,46 +135,69 @@ class BaseOptimizer(ABC):
 
     def evaluate_candidate(self, model_builder, candidate_params, X, y=None):
         """
-        Builds a model (via model_builder) and evaluates it.
-        For supervised learning tasks, performs cross-validation.
-        For clustering tasks, uses silhouette score or other clustering metrics.
+        Builds and evaluates a model. Handles:
+        - Supervised: cross-validation
+        - Clustering: silhouette score
+        - Time Series: negative RMSE on forecast
         """
-        model = model_builder(candidate_params)
+        try:
+            if self.task == Task.CLUSTERING:
+                from sklearn.metrics import silhouette_score
+                model = model_builder(candidate_params)
+                model.fit(X)
+                labels = model.labels_
 
-        if self.task == Task.CLUSTERING:
-            # For clustering, we don't use cross-validation
-            from sklearn.metrics import silhouette_score
-            model.fit(X)
-            labels = model.labels_
-            
-            # Handle DBSCAN noise points (-1 labels)
-            if -1 in labels:
-                # Remove noise points for silhouette score calculation
-                mask = labels != -1
-                if sum(mask) > 0:  # Only calculate if we have non-noise points
-                    score = silhouette_score(X[mask], labels[mask])
+                if -1 in labels:
+                    mask = labels != -1
+                    if np.sum(mask) > 0:
+                        score = silhouette_score(X[mask], labels[mask])
+                    else:
+                        score = -1
                 else:
-                    score = -1  # Worst possible score if all points are noise
+                    score = silhouette_score(X, labels)
+
+                if self.verbose:
+                    print(f"Evaluated clustering {candidate_params} => Score: {score:.4f}")
+                return score
+
+            elif self.task == Task.TIME_SERIES:
+                n_splits = 2 
+                tscv = TimeSeriesSplit(n_splits=n_splits)
+                rmse_scores = []
+
+                for train_index, test_index in tscv.split(y):
+                    train, test = y[train_index], y[test_index]
+                    model = self.build_model(candidate_params, y=train) 
+                    model_fit = model.fit()
+                    forecast_horizon = len(test) 
+                    y_pred = model_fit.forecast(steps=forecast_horizon)
+                    rmse = np.sqrt(np.mean((test - y_pred) ** 2))
+                    rmse_scores.append(rmse)
+                    if self.verbose:
+                        print(f"Evaluated time series {candidate_params} => RMSE for fold: {rmse:.4f}")
+                avg_rmse = np.mean(rmse_scores)
+                score = -avg_rmse  
+                if self.verbose:
+                    print(f"Average RMSE across {n_splits} folds: {avg_rmse:.4f}")
+
+                return score
+
             else:
-                score = silhouette_score(X, labels)
-            
-            if self.verbose:
-                print(f"Evaluated candidate {candidate_params} => Score: {score:.4f}")
-            return score
-        else:
-            # For supervised learning tasks, use cross-validation
-            metric = self.metric
-            if metric == "rmse":
-                metric = "neg_root_mean_squared_error"
+                model = model_builder(candidate_params)
+                metric = self.metric
+                if metric == "rmse":
+                    metric = "neg_root_mean_squared_error"
 
-            scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
-            avg_score = scores.mean()
+                scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
+                avg_score = scores.mean()
 
-            if self.verbose:
-                print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
-        
-            return avg_score
-    
+                if self.verbose:
+                    print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
+                return avg_score
+        except Exception as e:
+            logger.info(f"model failed fitting with error {e}")
+            return -np.inf
+
     @abstractmethod
     def fit(self, X, y):
         """Run the optimization process and return the fitted model."""
