@@ -204,7 +204,7 @@ class LLMOptimizer(BaseOptimizer):
         llm_model: str = "models/gemini-1.5-pro",
         max_llm_calls: int = 100,
         max_calls_per_min: int = 15,
-        patience: int = 15,
+        patience: int = 25,
         verbose: bool = False,
         cache_db: str = "llm_cache.db",
     ) -> None:
@@ -285,6 +285,9 @@ class LLMOptimizer(BaseOptimizer):
                 score,
                 self.best_score,
             )
+            if self._since_improve >= self.patience:
+                logger.info("Early stopping triggered.")
+                break
             if (time.time() - start) >= self.time_budget:
                 break
         best_params = max(self._history, key=lambda t: t[1])[0]
