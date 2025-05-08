@@ -112,13 +112,17 @@ class BaseOptimizer(ABC):
         elif model_lower == "lightgbm":
             import lightgbm as lgb
             ModelClass = (lgb.LGBMClassifier if self.task == Task.CLASSIFICATION 
-                          else lgb.LGBMRegressor)
+                        else lgb.LGBMRegressor)
             model = ModelClass(
                 learning_rate=candidate_params.get("learning_rate", 0.1),
                 n_estimators=candidate_params.get("n_estimators", 100),
                 num_leaves=candidate_params.get("num_leaves", 31),
                 max_depth=candidate_params.get("max_depth", -1),
                 min_child_samples=candidate_params.get("min_child_samples", 20),
+                subsample=candidate_params.get("subsample", 1.0),
+                colsample_bytree=candidate_params.get("colsample_bytree", 1.0),
+                reg_alpha=candidate_params.get("reg_alpha", 0.0),
+                reg_lambda=candidate_params.get("reg_lambda", 0.0),
                 n_jobs=-1,
                 verbose=-1
             )
@@ -135,19 +139,18 @@ class BaseOptimizer(ABC):
 
         elif model_lower == "ridge":
             from sklearn.linear_model import Ridge
-            model = Ridge(alpha=candidate_params.get("alpha", 1.0))
+            model = Ridge(alpha=candidate_params.get("alpha", 1.0), max_iter=candidate_params.get("max_iter", 1000))
         
         elif model_lower == "lasso":
             from sklearn.linear_model import Lasso
-            model = Lasso(alpha=candidate_params.get("alpha", 1.0))
+            model = Lasso(alpha=candidate_params.get("alpha", 1.0), max_iter=candidate_params.get("max_iter", 1000))
 
         elif model_lower == "linearregression":
             from sklearn.linear_model import LinearRegression
             model = LinearRegression(n_jobs=-1)
 
         elif model_lower == "histgradientboosting":
-            # Enable the experimental HistGradientBoosting; note that the import is required.
-            from sklearn.experimental import enable_hist_gradient_boosting  
+            from sklearn.experimental import enable_hist_gradient_boosting  # noqa
             if self.task == Task.CLASSIFICATION:
                 from sklearn.ensemble import HistGradientBoostingClassifier as ModelClass
             else:
@@ -158,6 +161,8 @@ class BaseOptimizer(ABC):
                 max_iter=candidate_params.get("max_iter", 100),
                 max_depth=candidate_params.get("max_depth", None),
                 max_leaf_nodes=candidate_params.get("max_leaf_nodes", None),
+                min_samples_leaf=candidate_params.get("min_samples_leaf", 20),
+                l2_regularization=candidate_params.get("l2_regularization", 0.0),
                 early_stopping=True,
                 n_iter_no_change=5
             )

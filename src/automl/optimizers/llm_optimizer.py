@@ -20,6 +20,9 @@ from optuna.distributions import (
 from automl.enums import Task
 from automl.optimizers.base_optimizer import BaseOptimizer
 from automl.config import get_config
+from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.inspection import permutation_importance
+from sklearn.preprocessing import OrdinalEncoder
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -167,6 +170,7 @@ class LLMOptimizer(BaseOptimizer):
         "The 'rationale' must be the first key in the response, and it should be a string. "
         "You can take multiple lines and steps to reach the final response, but the final response must be a single JSON object. "
         "For example you can add 'rationale2' as a key if you need to add more explanation. "
+        "You"
     )
 
     INIT_PROMPT = (
@@ -190,6 +194,24 @@ class LLMOptimizer(BaseOptimizer):
         "next_params must strictly follow the example format, suggest only one model type.\n"
         "Types of models you are allowed to suggest: {models}\n"
         "The model name should be a key in the hyperparameters suggested, it shouldn't be included elsewhere. And it can be accessed by response['next_params']['model']'\n"
+        "If you need additional data insight to choose ranges or models, include an optional "
+        "`'analysis_request'` object with exactly these keys:\n"
+        "  • `type` (string): one of ['feature_importance', 'correlation_matrix', "
+        "'summary_stats', 'missing_values', 'value_distribution', 'outlier_detection', "
+        "'target_encoding_suggestions', 'time_series_trends'].\n"
+        "  • `args` (dict): any parameters for that analysis top_k = 5.\n"
+        "You may only request **one** analysis per JSON; its result will be provided in "
+        "the next prompt under `analyses`. "   
+        "Supported types:\n"
+        "  - `feature_importance`: Permutation importances of top features.\n"
+        "  - `correlation_matrix`: Pairs with |ρ| ≥ threshold.\n"
+        "  - `summary_stats`: mean, std, min, max for each feature.\n"
+        "  - `missing_values`: counts of nulls per column.\n"
+        "  - `value_distribution`: histograms or quantiles (args: `bins`).\n"
+        "  - `outlier_detection`: list of features with >kσ outliers (args: `sigma`).\n"
+        "  - `target_encoding_suggestions`: categorical tidy-up advice.\n"
+        "  - `time_series_trends`: rolling means, seasonality hints (args: `window`).\n"
+        " Analysis results: {analyses}.\n"
     )
 
     SUMMARISE_PROMPT = (
@@ -201,7 +223,7 @@ class LLMOptimizer(BaseOptimizer):
         task: str,
         time_budget: int,
         problem_description: str,
-        llm_model: str = "models/gemini-1.5-pro",
+        llm_model: str = "models/gemini-2.5-pro-preview-05-06",
         max_llm_calls: int = 100,
         max_calls_per_min: int = 15,
         patience: int = 25,
@@ -238,6 +260,9 @@ class LLMOptimizer(BaseOptimizer):
         self._distributions: Dict[str, optuna.distributions.BaseDistribution] = {}
         self._tpe_sampler = optuna.samplers.TPESampler(seed=42)
         self._pending_trial: Optional[Tuple[optuna.trial.Trial, optuna.trial.Trial]] = None
+        self._analyses: List[Dict[str, object]] = []
+        self._X_train = None
+        self._y_train = None
 
     def _call_llm(self, prompt: str) -> str:
         full_prompt = f"<system>{self.SYSTEM_MSG}</system>\n<user>{prompt}</user>"
@@ -253,6 +278,8 @@ class LLMOptimizer(BaseOptimizer):
         return resp.text
 
     def fit(self, X, y): 
+        self._X_train = X
+        self._y_train = y
         start = time.time()
         self._zero_shot_initialize()
         logger.info("Initial params from LLM: %s", self._last_llm_params)
@@ -271,6 +298,8 @@ class LLMOptimizer(BaseOptimizer):
             if self._since_improve >= self.patience:
                 logger.info("Early stopping triggered.")
                 break
+            else:
+                logger.info("Last Improvement: %d", self._since_improve)
             if len(self._history) % 2 == 0 and self._llm_calls < self._max_llm_calls:
                 candidate = self._llm_suggest()
             else:
@@ -352,15 +381,20 @@ class LLMOptimizer(BaseOptimizer):
     def _llm_suggest(self) -> Dict[str, object]:
         prompt = self.OPT_PROMPT.format(
             best=self.best_score,
-            trials=self._compact_history(10),
+            trials=self._compact_history(len(self._history)),
             example=self.EXAMPLE,
             example_update=self.EXAMPLE_UPDATE,
             models=get_config(task=self.task)["models"].keys(),
+            analyses=json.dumps(self._analyses),
         )
         try:
             resp_text = self._call_llm(prompt)
             logger.info(resp_text)
             data = json.loads(resp_text)
+            if "analysis_request" in data:
+                result = self._run_analysis(data["analysis_request"])
+                self._analyses.append({"request": data["analysis_request"], "result": result})
+
             suggestion = {
                 k: self._coerce(k, v) for k, v in data["next_params"].items()
             }
@@ -369,6 +403,89 @@ class LLMOptimizer(BaseOptimizer):
         except Exception as exc:
             logger.warning("LLM failure → random (%s)", exc)
         return self._random_candidate()
+    
+    def _run_analysis(self, req: Dict[str, object]) -> str:
+        atype = req.get("type", "")
+        args  = req.get("args", {}) or {}
+
+        if atype == "feature_importance":
+            top_k = int(args.get("top_k", 10))
+
+            import lightgbm as lgb
+            model = lgb.LGBMRegressor(
+                n_estimators=100,
+                random_state=42,
+                n_jobs=-1
+            )
+            model.fit(self._X_train, self._y_train)
+
+            importances = model.feature_importances_
+            names = self._X_train.columns
+            idx = np.argsort(importances)[::-1][:top_k]
+            result = { names[i]: float(importances[i]) for i in idx }
+        elif atype == "correlation_matrix":
+            th = float(args.get("threshold", 0.7))
+            corr = self._X_train.corr().abs()
+            pairs = (corr.where(np.triu(np.ones(corr.shape), 1).astype(bool))
+                    .stack()
+                    .sort_values(ascending=False))
+            result = {f"{i}|{j}": round(v, 3) for (i, j), v in pairs.items() if v >= th}
+
+        elif atype == "summary_stats":
+            desc = self._X_train.describe(include="all").T
+            df = desc.loc[:, ["mean", "std", "min", "max"]].round(3)
+            result = df.to_dict("index")
+
+        elif atype == "missing_values":
+            na = self._X_train.isnull().sum().sort_values(ascending=False)
+            result = na[na > 0].head(15).to_dict()
+        elif atype == "value_distribution":
+            bins = int(args.get("bins", 10))
+            result = {}
+            for col in self._X_train.columns[:10]:
+                ser = self._X_train[col].dropna()
+                if pd.api.types.is_numeric_dtype(ser):
+                    qs = ser.quantile(np.linspace(0, 1, bins + 1)).round(3).to_dict()
+                    result[col] = {"quantiles": qs}
+                else:
+                    counts = ser.value_counts().head(bins).to_dict()
+                    result[col] = {"top_values": counts}
+        elif atype == "outlier_detection":
+            sigma = float(args.get("sigma", 3.0))
+            result = {}
+            for col in self._X_train.select_dtypes(include="number").columns:
+                ser = self._X_train[col].dropna()
+                mean, std = ser.mean(), ser.std()
+                out = ser[(ser - mean).abs() > sigma * std]
+                if not out.empty:
+                    result[col] = int(len(out))
+        elif atype == "target_encoding_suggestions":
+            cats = self._X_train.select_dtypes(include="object").columns
+            enc = OrdinalEncoder()
+            xo = enc.fit_transform(self._X_train[cats].fillna("NA"))
+            df_enc = pd.DataFrame(xo, columns=cats)
+            enc_sugg = {}
+            for col in cats:
+                corr = pd.Series(df_enc[col]).corr(self._y_train)
+                enc_sugg[col] = round(corr, 3)
+            result = enc_sugg
+        elif atype == "time_series_trends":
+            window = int(args.get("window", 7))
+            df = self._X_train.copy()
+            if not isinstance(df.index, pd.DatetimeIndex):
+                return json.dumps({"error": "Index not Datetime"}, ensure_ascii=False)
+            trend = df.rolling(window=window).mean().iloc[-1].round(3).to_dict()
+            season = {}
+            try:
+                prev = df.shift(365).rolling(window=window).mean()
+                season = prev.iloc[-1].round(3).to_dict()
+            except Exception:
+                pass
+            result = {"rolling_mean": trend, "last_year_mean": season}
+
+        else:
+            result = {"error": f"Unknown analysis type '{atype}'"}
+        return json.dumps(result, ensure_ascii=False)
 
     def _maybe_update_ranges(self, new_ranges: Dict[str, object]):
         if not new_ranges:
@@ -396,8 +513,8 @@ class LLMOptimizer(BaseOptimizer):
 
     def _register_trial(self, params: Dict[str, object], score: float):
         self._history.append((params, score))
+        self._since_improve = 0 if score > self.best_score + 0.001 else self._since_improve + 1
         self.best_score = max(self.best_score, score)
-        self._since_improve = 0 if score == self.best_score else self._since_improve + 1
 
         if isinstance(self._pending_trial, tuple):
             for tr in self._pending_trial:
