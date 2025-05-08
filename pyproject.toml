@@ -29,7 +29,7 @@ dependencies = [
     "tzdata==2025.1",
     "dotenv==0.9.9",
     "google-generativeai==0.8.5",
-    "optuna-4.3.0"
+    "optuna==4.3.0"
 ]
 
 [project.optional-dependencies]
