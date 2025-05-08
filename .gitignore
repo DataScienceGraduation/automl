@@ -53,3 +53,7 @@ datasets/
 new_datasets/
 saved_surrogates/
 dataset_statistics/
+
+
+.env
+*.csv

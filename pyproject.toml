@@ -27,7 +27,10 @@ dependencies = [
     "pytz==2025.1",
     "six==1.17.0",
     "threadpoolctl==3.5.0",
-    "tzdata==2025.1"
+    "tzdata==2025.1",
+    "dotenv==0.9.9",
+    "google-generativeai==0.8.5",
+    "optuna-4.3.0"
 ]
 
 [project.optional-dependencies]
