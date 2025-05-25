@@ -108,7 +108,12 @@ class RandomSearchOptimizer(BaseOptimizer):
 
         while time.time() - start_time < self.time_budget:
             candidate = self._generate_candidate()
-            score = self.evaluate_candidate(self.build_model, candidate, X, y)
+            try:
+                score = self.evaluate_candidate(self.build_model, candidate, X, y)
+            except Exception as e:
+                logger.error("Error evaluating candidate %s: %s", candidate, e, exc_info=True)
+                continue
+
             history.append((candidate, score))
 
             if score > self.best_score:
@@ -154,12 +159,12 @@ class RandomSearchOptimizer(BaseOptimizer):
 #     print(accuracy)
 
 if __name__ == "__main__":
-    df = pd.read_csv('./Train.csv')
+    df = pd.read_csv(r"C:\Users\pc\OneDrive\Desktop\Graduation Project\automl\src\automl\optimizers\training_data\train.csv")
     print(df.head())
     print(len(df))
 
     # Preprocessing pipeline
-    pl = createPipeline(df, target_variable='Sales_Quantity',task='time series')
+    pl = createPipeline(df, target_variable='Sales',task='time series')
     df = pl.transform(df)
     print(df.head())
     print(len(df))
@@ -167,7 +172,7 @@ if __name__ == "__main__":
     # Initialize optimizer
     gps = RandomSearchOptimizer(task=Task.TIME_SERIES, time_budget=300)
 
-    y = df['Sales_Quantity']
+    y = df['Sales']
 
     gps.fit(X=None, y=y)
 
