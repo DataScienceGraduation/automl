@@ -1,0 +1,13 @@
+[run]
+source = src/automl
+omit =
+    src/automl/optimizers/bayesian_optimizer.py
+    src/automl/optimizers/bayesian_optimizer_hyperband.py
+    src/automl/optimizers/random_search_optimizer.py
+    src/automl/optimizers/llm_optimizer.py
+    src/automl/optimizers/surrogate_models/meta_surrogate.py
+
+[report]
+fail_under = 80
+show_missing = True
+skip_covered = True
