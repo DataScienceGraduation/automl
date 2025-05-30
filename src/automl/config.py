@@ -92,15 +92,18 @@ TIME_SERIES_CONFIG = {
 }
 
 CLUSTERING_CONFIG = {
-    "default_metric": "silhouette",
+    "default_metric": "custom_clustering_score",
     "models": {
         "KMeans": {
             "n_clusters": list(np.arange(2, 11, 1)),
-            "random_state": [42]
+            "random_state": [42],
+            "max_iter": list(np.arange(100, 1001, 100)),
         },
         "DBSCAN": {
             "eps": list(np.linspace(0.1, 1.0, 10)),
-            "min_samples": list(np.arange(1, 11, 1))
+            "min_samples": list(np.arange(1, 11, 1)),
+            "max_iter": list(np.arange(100, 1001, 100)),
+            "random_state": [42],
         },
     }
 }

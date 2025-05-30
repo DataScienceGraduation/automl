@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, TimeSeriesSplit
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from automl import Task
 import time
@@ -29,7 +31,7 @@ class BaseOptimizer(ABC):
             elif self.task == Task.TIME_SERIES:
                 self.metric = self.config.get("default_metric", "rmse")
             elif self.task == Task.CLUSTERING:
-                self.metric = self.config.get("default_metric", "silhouette")
+                self.metric = self.config.get("default_metric", "custom_clustering_score")
             else:
                 self.metric = "accuracy"
         else:
@@ -137,12 +139,11 @@ class BaseOptimizer(ABC):
         """
         Builds and evaluates a model. Handles:
         - Supervised: cross-validation
-        - Clustering: silhouette score
+        - Clustering: custom combined score (0.65 * Silhouette + 0.35 * Davies-Bouldin)
         - Time Series: negative RMSE on forecast
         """
         try:
             if self.task == Task.CLUSTERING:
-                from sklearn.metrics import silhouette_score
                 model = model_builder(candidate_params)
                 model.fit(X)
                 labels = model.labels_
@@ -150,11 +151,24 @@ class BaseOptimizer(ABC):
                 if -1 in labels:
                     mask = labels != -1
                     if np.sum(mask) > 0:
-                        score = silhouette_score(X[mask], labels[mask])
+                        silhouette = silhouette_score(X[mask], labels[mask])
+                        davies_bouldin = davies_bouldin_score(X[mask], labels[mask])
                     else:
-                        score = -1
+                        return -np.inf
                 else:
-                    score = silhouette_score(X, labels)
+                    silhouette = silhouette_score(X, labels)
+                    davies_bouldin = davies_bouldin_score(X, labels)
+
+                # Invert Davies-Bouldin (since lower is better)
+                davies_bouldin = 1 / (1 + davies_bouldin)  # Adding 1 to avoid division by zero
+                
+                # Scale both metrics to [0,1] range
+                scaler = MinMaxScaler()
+                metrics = np.array([[silhouette], [davies_bouldin]])
+                scaled_metrics = scaler.fit_transform(metrics)
+                
+                # Calculate weighted score
+                score = 0.65 * scaled_metrics[0][0] + 0.35 * scaled_metrics[1][0]
 
                 if self.verbose:
                     print(f"Evaluated clustering {candidate_params} => Score: {score:.4f}")
