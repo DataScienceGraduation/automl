@@ -29,7 +29,7 @@ EXPANDED_CLASSIFICATION_CONFIG = {
             "max_iter": list(np.arange(100, 1001, 50))
         },
         "NaiveBayes": {
-            "var_smoothing": list(np.logspace(43, -4, 1000))  
+            "var_smoothing": list(np.logspace(-9, -1, 1000))  
         },
     }
 }
