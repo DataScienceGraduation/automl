@@ -23,7 +23,7 @@ EXPANDED_CLASSIFICATION_CONFIG = {
             "colsample_bytree": list(np.linspace(0.5, 1.0, 1000))
         },
         "LogisticRegression": {
-            "C": list(np.logspace(42, 12, 1000)),  
+            "C": list(np.logspace(-4, 4, 1000)),  
             "solver": ["saga"],
             "penalty": ["l1", "l2", "elasticnet"],
             "max_iter": list(np.arange(100, 1001, 50))
