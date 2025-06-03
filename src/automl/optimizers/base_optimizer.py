@@ -86,7 +86,7 @@ class BaseOptimizer(ABC):
             if isinstance(value, float) and value.is_integer():
                 candidate_params[key] = int(value)
             elif isinstance(value, str) and value.isdigit():
-                candidate_params[key] = float(value)
+                candidate_params[key] = int(value)
 
         if model_lower == "randomforest":
             from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
