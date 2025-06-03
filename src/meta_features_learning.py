@@ -33,13 +33,13 @@ for file in os.listdir(data_folder):
 
         df = pd.read_csv(dataset_path)
         print(df.shape)
-        target_variable = df.columns[-1]
+        target_variable = df['target']
         num_categorical = len(df.select_dtypes(include=["object", "category"]).columns)
 
         pipeline = createPipeline(df, target_variable)
         df = pipeline.transform(df)
-        X = df.drop(columns=target_variable)
-        y = df[target_variable].values
+        X = df.drop(columns=['target'])
+        y = df['target'].values
 
         task = Task.REGRESSION
 
@@ -61,7 +61,7 @@ for file in os.listdir(data_folder):
             imbalance_ratio = round(value_counts.max() / value_counts.min(), 2) if len(value_counts) > 1 else 1.0
 
         # Train optimizer with knowledge transfer
-        optimizer = BayesianOptimizer(task=task, surrogate_model=MetaGaussianSurrogate(task, df),time_budget=10)
+        optimizer = BayesianOptimizer(task=task, surrogate_model=MetaGaussianSurrogate(task, df),time_budget=10800)
 
         start_time = time.time()
         final_model = optimizer.fit(X, y)

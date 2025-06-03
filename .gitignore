@@ -54,9 +54,8 @@ new_datasets/
 saved_surrogates/
 dataset_statistics/
 
-# Cursor
+.env
+*.csv
 .cursor/ 
-
-# VSCode
 .vscode/
 .cursor/mcp.json

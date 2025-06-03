@@ -1,72 +1,62 @@
 import numpy as np
 from automl.enums import Task
+from sklearn.experimental import enable_hist_gradient_boosting 
 
 
-CLASSIFICATION_CONFIG = {
+EXPANDED_CLASSIFICATION_CONFIG = {
     "default_metric": "accuracy",
     "models": {
-        "RandomForest": {
-            "n_estimators": list(np.arange(100, 501, 50)),
-            "max_depth": list(np.arange(3, 31, 1)),
-            "min_samples_split": list(np.arange(2, 11, 1)),
-            "min_samples_leaf": list(np.arange(1, 6, 1)),
-            "bootstrap": [True, False]
-        },
-        "XGBoost": {
-            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
-            "n_estimators": list(np.arange(50, 501, 50)),
-            "max_depth": list(np.arange(3, 16, 1)),
-            "gamma": list(np.linspace(0, 10, 21)),
-            "subsample": list(np.linspace(0.6, 1.0, 5)),
-            "colsample_bytree": list(np.linspace(0.6, 1.0, 5))
+        "ExtraTrees": {
+            "n_estimators": list(np.arange(25, 201, 10)),
+            "max_depth": list(np.arange(3, 21, 1)),
+            "min_samples_split": list(np.arange(2, 21)),
+            "min_samples_leaf": list(np.arange(1, 11)),
+            "max_features": ["0.2", "0.3", "0.5", "0.7"]
         },
         "LightGBM": {
-            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
-            "n_estimators": list(np.arange(50, 501, 50)),
-            "num_leaves": list(np.arange(31, 256, 25)),
-            "max_depth": list(np.arange(-1, 17, 1)),
-            "min_child_samples": list(np.arange(5, 51, 5))
+            "learning_rate": list(np.linspace(0.001, 0.5, 1000)), 
+            "n_estimators": list(np.arange(25, 201, 25)),
+            "num_leaves": list(np.arange(10, 105, 5)),
+            "max_depth": list(np.arange(1, 21, 1)),
+            "min_child_samples": list(np.arange(5, 21, 5)),
+            "subsample": list(np.linspace(0.5, 1.0, 1000)), 
+            "colsample_bytree": list(np.linspace(0.5, 1.0, 1000))
         },
         "LogisticRegression": {
-            "C": list(np.logspace(-2, 2, 10)),
-            "solver": ["lbfgs", "sag", "saga"],
-            "penalty": ["l2", "none"]
-        }
+            "C": list(np.logspace(-4, 4, 1000)),  
+            "solver": ["saga"],
+            "penalty": ["l1", "l2", "elasticnet"],
+            "max_iter": list(np.arange(100, 1001, 50))
+        },
+        "NaiveBayes": {
+            "var_smoothing": list(np.logspace(-9, -1, 1000))  
+        },
     }
 }
 
-
-REGRESSION_CONFIG = {
+EXPANDED_REGRESSION_CONFIG = {
     "default_metric": "rmse",
     "models": {
-        "RandomForest": {
-            "n_estimators": list(np.arange(100, 501, 50)),
-            "max_depth": list(np.arange(3, 31, 1)),
-            "min_samples_split": list(np.arange(2, 11, 1)),
-            "min_samples_leaf": list(np.arange(1, 6, 1)),
-            "bootstrap": [True, False]
-        },
-        "XGBoost": {
-            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
-            "n_estimators": list(np.arange(50, 501, 50)),
-            "max_depth": list(np.arange(3, 16, 1)),
-            "gamma": list(np.linspace(0, 10, 21)),
-            "subsample": list(np.linspace(0.6, 1.0, 5)),
-            "colsample_bytree": list(np.linspace(0.6, 1.0, 5))
-        },
         "LightGBM": {
-            "learning_rate": list(np.linspace(0.0001, 0.3, 30)),
-            "n_estimators": list(np.arange(50, 501, 50)),
-            "num_leaves": list(np.arange(31, 256, 25)),
-            "max_depth": list(np.arange(-1, 17, 1)),
-            "min_child_samples": list(np.arange(5, 51, 5))
+            "learning_rate": list(np.linspace(0.001, 0.1, 1000)),
+            "n_estimators": list(np.arange(25, 201, 25)),
+            "num_leaves": list(np.arange(10, 56, 5)),
+            "max_depth": list(np.arange(1, 21, 1)),
+            "min_child_samples": list(np.arange(5, 51, 5)),
+            "subsample": list(np.linspace(0.5, 1.0, 1000)),
+            "colsample_bytree": list(np.linspace(0.5, 1.0, 1000))
         },
-        "LinearRegression": {},
         "Ridge": {
-            "alpha": list(np.logspace(-2, 2, 10))  # 0.01..100
+            "alpha": list(np.logspace(-3, 3, 1000))
+        },
+        "HistGradientBoosting": {
+            "learning_rate": list(np.linspace(0.001, 0.1, 1000)),
+            "max_iter": list(np.arange(100, 501, 25)),
+            "max_depth": list(np.arange(5, 21, 1)),
+            "max_leaf_nodes": list(np.arange(10, 101, 5))
         },
         "Lasso": {
-            "alpha": list(np.logspace(-2, 2, 10))  # 0.01..100
+            "alpha": list(np.logspace(-3, 3, 1000))
         }
     }
 }
@@ -110,12 +100,12 @@ CLUSTERING_CONFIG = {
 
 def get_config(task: str):
     """
-    Returns the configuration dictionary for a given task type.
+    Returns the configuration dictionary for a given task type,
     """
     if task == Task.CLASSIFICATION:
-        return CLASSIFICATION_CONFIG
+        return EXPANDED_CLASSIFICATION_CONFIG
     elif task == Task.REGRESSION:
-        return REGRESSION_CONFIG
+        return EXPANDED_REGRESSION_CONFIG
     elif task == Task.TIME_SERIES:
         return TIME_SERIES_CONFIG
     elif task == Task.CLUSTERING:
