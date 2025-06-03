@@ -23,15 +23,19 @@ class RemoveHighlyCorrelated(BaseEstimator, TransformerMixin):
         for col in upper_tri.columns:
             for row in upper_tri.index:
                 if upper_tri.loc[row, col] > self.correlation_threshold:
-                    # Drop the column with lower correlation to the target variable
-                    if abs(df[col].corr(df[self.target_variable])) < abs(df[row].corr(df[self.target_variable])):
+                    # For clustering, just drop the first column of the pair
+                    if self.target_variable is None:
                         self.columns_to_drop_.append(col)
                     else:
-                        self.columns_to_drop_.append(row)
+                        # For other tasks, drop based on correlation with target
+                        if abs(df[col].corr(df[self.target_variable])) < abs(df[row].corr(df[self.target_variable])):
+                            self.columns_to_drop_.append(col)
+                        else:
+                            self.columns_to_drop_.append(row)
 
         # Deduplicate and ensure we don't drop the target variable itself
         self.columns_to_drop_ = list(set(self.columns_to_drop_))
-        if self.target_variable in self.columns_to_drop_:
+        if self.target_variable is not None and self.target_variable in self.columns_to_drop_:
             self.columns_to_drop_.remove(self.target_variable)
 
         return self

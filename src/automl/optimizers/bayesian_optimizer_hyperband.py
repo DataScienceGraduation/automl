@@ -33,7 +33,7 @@ class BayesianOptimizerHyperband(BaseOptimizer):
         config = get_config(task)
         super().__init__(task, time_budget, metric=None, verbose=verbose, config=config)
 
-        self.surrogate_model = surrogate_model
+        self.surrogate_model = surrogate_model if surrogate_model is not None else GaussianProcessSurrogate(task=task)
         self.acquisition_function = acquisition_function
         self.state_space = self.models_config
         self.eta = eta  # Hyperband reduction factor
@@ -56,37 +56,6 @@ class BayesianOptimizerHyperband(BaseOptimizer):
             candidate[param] = np.random.choice(values)
         return candidate
 
-    def _build_model(self, candidate_params: dict):
-        """
-        Instantiate a model with the given hyperparameter configuration.
-        """
-        decoded_model = self.model_encoder.inverse_transform([candidate_params["model"]])[0]
-        candidate = candidate_params.copy()
-        candidate["model"] = decoded_model
-
-        if decoded_model.lower() == "randomforest":
-            from sklearn.ensemble import RandomForestClassifier
-            model = RandomForestClassifier(
-                n_estimators=candidate.get("n_estimators"),
-                max_depth=candidate.get("max_depth"),
-                min_samples_split=candidate.get("min_samples_split")
-            )
-        elif decoded_model.lower() == "xgboost":
-            from xgboost import XGBClassifier
-            model = XGBClassifier(
-                learning_rate=candidate.get("learning_rate"),
-                n_estimators=candidate.get("n_estimators"),
-                max_depth=candidate.get("max_depth"),
-                gamma=candidate.get("gamma")
-            )
-        elif decoded_model.lower() == "logisticregression":
-            from sklearn.linear_model import LogisticRegression
-            model = LogisticRegression(C=candidate.get("C"))
-        else:
-            from sklearn.linear_model import LogisticRegression
-            model = LogisticRegression()
-        return model
-
     def _run_hyperband(self, X, y, R=27):
         """
         Hyperband framework for budget allocation with Bayesian Optimization.
@@ -103,9 +72,13 @@ class BayesianOptimizerHyperband(BaseOptimizer):
             performances = []
             
             for i, candidate in enumerate(candidates):
-                # model = self._build_model(candidate)
                 t1 = time.time()
-                score = self.evaluate_candidate(self._build_model, candidate, X, y)
+                # Decode the model name for the base class's build_model method
+                decoded_candidate = candidate.copy()
+                decoded_model = self.model_encoder.inverse_transform([candidate["model"]])[0]
+                decoded_candidate["model"] = decoded_model
+                
+                score = self.evaluate_candidate(self.build_model, decoded_candidate, X, y)
                 t2 = time.time()
                 T = t2 - t1
                 if(T > r):
@@ -131,7 +104,12 @@ class BayesianOptimizerHyperband(BaseOptimizer):
         best_params = self._run_hyperband(X, y)
         
         logger.info("Best candidate found: %s", best_params)
-        final_model = self._build_model(best_params)
+        # Decode the model name for the base class's build_model method
+        decoded_params = best_params.copy()
+        decoded_model = self.model_encoder.inverse_transform([best_params["model"]])[0]
+        decoded_params["model"] = decoded_model
+        
+        final_model = self.build_model(decoded_params)
         final_model.fit(X, y)
         
         self.optimal_model = final_model

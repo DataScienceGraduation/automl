@@ -61,6 +61,42 @@ EXPANDED_REGRESSION_CONFIG = {
     }
 }
 
+TIME_SERIES_CONFIG = {
+    "default_metric": "rmse",
+    "models": {
+        "ARIMA": {
+            "p": list(np.arange(0, 5, 1)),
+            "d": list(np.arange(0, 2, 1)),
+            "q": list(np.arange(0, 5, 1)),
+        },
+        "SARIMAX": {
+            "p": list(np.arange(0, 7, 1)),
+            "d": list(np.arange(0, 3, 1)),
+            "q": list(np.arange(0, 7, 1)),
+            "P": list(np.arange(0, 7, 1)),
+            "D": list(np.arange(0, 3, 1)),
+            "Q": list(np.arange(0, 7, 1)),
+            "s": list(np.arange(1, 13, 1)),
+        }
+    }
+}
+
+CLUSTERING_CONFIG = {
+    "default_metric": "custom_clustering_score",
+    "models": {
+        "KMeans": {
+            "n_clusters": list(np.arange(2, 11, 1)),
+            "random_state": [42],
+            "max_iter": list(np.arange(100, 1001, 100)),
+        },
+        "DBSCAN": {
+            "eps": list(np.linspace(0.1, 1.0, 10)),
+            "min_samples": list(np.arange(1, 11, 1)),
+            "max_iter": list(np.arange(100, 1001, 100)),
+            "random_state": [42],
+        },
+    }
+}
 
 def get_config(task: str):
     """
@@ -70,5 +106,9 @@ def get_config(task: str):
         return EXPANDED_CLASSIFICATION_CONFIG
     elif task == Task.REGRESSION:
         return EXPANDED_REGRESSION_CONFIG
+    elif task == Task.TIME_SERIES:
+        return TIME_SERIES_CONFIG
+    elif task == Task.CLUSTERING:
+        return CLUSTERING_CONFIG
     else:
         raise ValueError("Unsupported task type")

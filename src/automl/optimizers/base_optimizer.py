@@ -1,9 +1,13 @@
 from abc import ABC, abstractmethod
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, TimeSeriesSplit
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from automl import Task
 import time
 import logging
+from sklearn.model_selection import TimeSeriesSplit
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -20,19 +24,13 @@ MODEL_MAPPING = {
     9: "Lasso"
 }
 
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 class BaseOptimizer(ABC):
     def __init__(self, task, time_budget, metric=None, verbose=False, cv_folds=10, config=None):
-        """
-        Parameters:
-            task: str - e.g., "classification" or "regression"
-            time_budget: int - time allowed for optimization (in seconds)
-            metric: str - scoring function (if None, defaults to value in config based on task)
-            verbose: bool - whether to print detailed info (default False)
-            cv_folds: int - number of cross-validation folds (default 10)
-            config: dict - configuration dictionary (e.g., from automl.config)
-        """
         self.task = task
         self.time_budget = time_budget
         self.verbose = verbose
@@ -44,6 +42,10 @@ class BaseOptimizer(ABC):
                 self.metric = self.config.get("default_metric", "accuracy")
             elif self.task == Task.REGRESSION:
                 self.metric = self.config.get("default_metric", "rmse")
+            elif self.task == Task.TIME_SERIES:
+                self.metric = self.config.get("default_metric", "rmse")
+            elif self.task == Task.CLUSTERING:
+                self.metric = self.config.get("default_metric", "custom_clustering_score")
             else:
                 self.metric = "accuracy"
         else:
@@ -96,8 +98,7 @@ class BaseOptimizer(ABC):
                 min_samples_split=candidate_params.get("min_samples_split", 2),
                 n_jobs=-1  # enable parallelism
             )
-
-        elif model_lower == "xgboost":
+        elif model_name == "xgboost":
             from xgboost import XGBClassifier, XGBRegressor
             ModelClass = (XGBClassifier if self.task == Task.CLASSIFICATION 
                           else XGBRegressor)
@@ -126,7 +127,6 @@ class BaseOptimizer(ABC):
                 n_jobs=-1,
                 verbose=-1
             )
-
         elif model_lower == "logisticregression":
             from sklearn.linear_model import LogisticRegression
             model = LogisticRegression(
@@ -155,7 +155,9 @@ class BaseOptimizer(ABC):
                 from sklearn.ensemble import HistGradientBoostingClassifier as ModelClass
             else:
                 from sklearn.ensemble import HistGradientBoostingRegressor as ModelClass
-
+        elif model_name == "lightgbm":
+            import lightgbm as lgb
+            ModelClass = lgb.LGBMClassifier if self.task == Task.CLASSIFICATION else lgb.LGBMRegressor
             model = ModelClass(
                 learning_rate=candidate_params.get("learning_rate", 0.1),
                 max_iter=candidate_params.get("max_iter", 100),
@@ -166,7 +168,6 @@ class BaseOptimizer(ABC):
                 early_stopping=True,
                 n_iter_no_change=5
             )
-
         elif model_lower == "extratrees":
             from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor
             ModelClass = (ExtraTreesClassifier if self.task == Task.CLASSIFICATION 
@@ -186,30 +187,130 @@ class BaseOptimizer(ABC):
                 )
             else:
                 raise ValueError("NaiveBayes is not typical for regression.")
+        elif model_name == "arima":
+            from statsmodels.tsa.arima.model import ARIMA
+            model = ARIMA(
+                endog=y,
+                order=(
+                    candidate_params.get("p"),
+                    candidate_params.get("d"),
+                    candidate_params.get("q")
+                ),
+                enforce_stationarity=False,
+                enforce_invertibility=False
+            )
+        elif model_name == "sarimax":
+            from statsmodels.tsa.statespace.sarimax import SARIMAX
+            model = SARIMAX(
+                endog=y,
+                order=(
+                    candidate_params.get("p"),
+                    candidate_params.get("d"),
+                    candidate_params.get("q")
+                ),
+                seasonal_order=(
+                    candidate_params.get("P"),
+                    candidate_params.get("D"),
+                    candidate_params.get("Q"),
+                    candidate_params.get("s")
+                ),
+                enforce_stationarity=False,
+                enforce_invertibility=False
+            )
+        elif model_name == "kmeans":
+            from sklearn.cluster import KMeans
+            model = KMeans(
+                n_clusters=candidate_params.get("n_clusters"),
+                random_state=candidate_params.get("random_state")
+            )
+        elif model_name == "dbscan":
+            from sklearn.cluster import DBSCAN
+            model = DBSCAN(
+                eps=candidate_params.get("eps"),
+                min_samples=candidate_params.get("min_samples")
+            )
         else:
             raise ValueError(f"Unsupported model: {model_name}")
 
         return model
-    
-    def evaluate_candidate(self, model_builder, candidate_params, X, y):
+
+    def evaluate_candidate(self, model_builder, candidate_params, X, y=None):
         """
-        Builds a model (via model_builder), performs cross-validation,
-        and returns the average score.
+        Builds and evaluates a model. Handles:
+        - Supervised: cross-validation
+        - Clustering: custom combined score (0.65 * Silhouette + 0.35 * Davies-Bouldin)
+        - Time Series: negative RMSE on forecast
         """
-        model = model_builder(candidate_params)
+        try:
+            if self.task == Task.CLUSTERING:
+                model = model_builder(candidate_params)
+                model.fit(X)
+                labels = model.labels_
 
-        metric = self.metric
-        if metric == "rmse":
-            metric = "neg_root_mean_squared_error"
+                if -1 in labels:
+                    mask = labels != -1
+                    if np.sum(mask) > 0:
+                        silhouette = silhouette_score(X[mask], labels[mask])
+                        davies_bouldin = davies_bouldin_score(X[mask], labels[mask])
+                    else:
+                        return -np.inf
+                else:
+                    silhouette = silhouette_score(X, labels)
+                    davies_bouldin = davies_bouldin_score(X, labels)
 
-        scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
-        avg_score = scores.mean()
+                # Invert Davies-Bouldin (since lower is better)
+                davies_bouldin = 1 / (1 + davies_bouldin)  # Adding 1 to avoid division by zero
+                
+                # Scale both metrics to [0,1] range
+                scaler = MinMaxScaler()
+                metrics = np.array([[silhouette], [davies_bouldin]])
+                scaled_metrics = scaler.fit_transform(metrics)
+                
+                # Calculate weighted score
+                score = 0.65 * scaled_metrics[0][0] + 0.35 * scaled_metrics[1][0]
 
-        if self.verbose:
-            print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
-    
-        return avg_score
-    
+                if self.verbose:
+                    print(f"Evaluated clustering {candidate_params} => Score: {score:.4f}")
+                return score
+
+            elif self.task == Task.TIME_SERIES:
+                n_splits = 2 
+                tscv = TimeSeriesSplit(n_splits=n_splits)
+                rmse_scores = []
+
+                for train_index, test_index in tscv.split(y):
+                    train, test = y[train_index], y[test_index]
+                    model = self.build_model(candidate_params, y=train) 
+                    model_fit = model.fit()
+                    forecast_horizon = len(test) 
+                    y_pred = model_fit.forecast(steps=forecast_horizon)
+                    rmse = np.sqrt(np.mean((test - y_pred) ** 2))
+                    rmse_scores.append(rmse)
+                    if self.verbose:
+                        print(f"Evaluated time series {candidate_params} => RMSE for fold: {rmse:.4f}")
+                avg_rmse = np.mean(rmse_scores)
+                score = -avg_rmse  
+                if self.verbose:
+                    print(f"Average RMSE across {n_splits} folds: {avg_rmse:.4f}")
+
+                return score
+
+            else:
+                model = model_builder(candidate_params)
+                metric = self.metric
+                if metric == "rmse":
+                    metric = "neg_root_mean_squared_error"
+
+                scores = cross_val_score(model, X, y, cv=self.cv_folds, scoring=metric)
+                avg_score = scores.mean()
+
+                if self.verbose:
+                    print(f"Evaluated candidate {candidate_params} => Score: {avg_score:.4f}")
+                return avg_score
+        except Exception as e:
+            logger.info(f"model failed fitting with error {e}")
+            return -np.inf
+
     @abstractmethod
     def fit(self, X, y):
         """Run the optimization process and return the fitted model."""

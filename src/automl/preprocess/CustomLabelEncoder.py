@@ -9,6 +9,9 @@ class CustomLabelEncoder(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         for col in X.select_dtypes(include=['object', 'category', 'string']).columns:
+            # Skip target variable if it exists
+            if self.target_variable is not None and col == self.target_variable:
+                continue
             self.label_encoders[col] = LabelEncoder()
             self.label_encoders[col].fit(X[col])
         return self

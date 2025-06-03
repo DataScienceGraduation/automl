@@ -1,9 +1,11 @@
-from .base_surrogate_model import BaseSurrogateModel
+from automl.optimizers.surrogate_models.base_surrogate_model import BaseSurrogateModel
 from typing import Tuple, Any
 import numpy as np
+import pandas as pd
 from sklearn.gaussian_process import GaussianProcessRegressor, GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF, Matern, ConstantKernel as C
 from automl.enums import Task
+from automl.functions import createPipeline
 
 
 class GaussianProcessSurrogate(BaseSurrogateModel):
@@ -25,7 +27,7 @@ class GaussianProcessSurrogate(BaseSurrogateModel):
                 kernel=kernel,
                 n_restarts_optimizer=20
             )
-        else:
+        elif self.task == Task.REGRESSION:
             kernel = C(1.0, (1e-3, 1e5)) * RBF(
                 length_scale=1.0,
                 length_scale_bounds=(1e-3, 1e5)
@@ -35,10 +37,14 @@ class GaussianProcessSurrogate(BaseSurrogateModel):
                 alpha=1e-7,
                 n_restarts_optimizer=20
             )
+        else:
+            raise ValueError(f"Unsupported task: {self.task}")
+    
+
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         """
-        Fit either a GPC or GPR depending on the task.
+        Fit either a GPC, GPR.
         """
         self.model.fit(X, y)
 
@@ -58,11 +64,12 @@ class GaussianProcessSurrogate(BaseSurrogateModel):
                 )
             labels = self.model.predict(X)
             return labels, None
-        else:
-            # Regression
+        elif self.task == Task.REGRESSION:
             if return_std:
                 y_mean, y_std = self.model.predict(X, return_std=True)
                 return y_mean, y_std
             else:
                 y_mean = self.model.predict(X, return_std=False)
                 return y_mean, None
+        else:
+            raise ValueError(f"Unsupported task: {self.task}")        

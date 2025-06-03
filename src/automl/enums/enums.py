@@ -13,7 +13,7 @@ class Task(Enum):
             "Regression": cls.REGRESSION,
             "Classification": cls.CLASSIFICATION,
             "Clustering": cls.CLUSTERING,
-            "Time Series": cls.TIME_SERIES,
+            "TimeSeries": cls.TIME_SERIES,
         }
         return display_to_enum[display_name]
 
@@ -35,3 +35,5 @@ class Metric(Enum):
     BIC_AIC = 14
     MSE = 15
     R2 = 16
+    Adjusted_R2 = 17
+    

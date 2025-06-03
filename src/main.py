@@ -9,6 +9,25 @@ from automl.enums import Task
 from automl.functions import createPipeline
 from pathlib import Path
 
+def detect_task_type(df: pd.DataFrame, target_variable: str = None) -> Task:
+    """
+    Detect the appropriate task type based on the dataset characteristics.
+    """
+    if target_variable is None:
+        return Task.CLUSTERING
+    
+    if df[target_variable].dtype == 'object' or df[target_variable].dtype.name == 'category':
+        return Task.CLASSIFICATION
+    
+    if df[target_variable].dtype in ['int64', 'float64']:
+        # If there are very few unique values relative to the number of samples, it might be classification
+        unique_ratio = len(df[target_variable].unique()) / len(df)
+        if unique_ratio < 0.1:  # Arbitrary threshold
+            return Task.CLASSIFICATION
+        return Task.REGRESSION
+    
+    return Task.REGRESSION  # Default to regression
+
 if __name__ == '__main__':
     BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -34,15 +53,25 @@ if __name__ == '__main__':
 
             df = pd.read_csv(dataset_path)
             print(df.shape)
-            target_variable = df.columns[-1]
+            
+            # Detect task type
+            target_variable = df.columns[-1] if len(df.columns) > 1 else None
+            task = detect_task_type(df, target_variable)
+            print(f"Detected task type: {task.name}")
+            
             num_categorical = len(df.select_dtypes(include=["object", "category"]).columns)
 
-            pipeline = createPipeline(df, target_variable)
-            df = pipeline.transform(df)
-            X = df.drop(columns=target_variable)
-            y = df[target_variable].values
-
-            task = Task.REGRESSION
+            # Create pipeline based on task type
+            if task == Task.CLUSTERING:
+                pipeline = createPipeline(df, None, task="clustering")
+                df = pipeline.transform(df)
+                X = df  # For clustering, use all features
+                y = None
+            else:
+                pipeline = createPipeline(df, target_variable)
+                df = pipeline.transform(df)
+                X = df.drop(columns=target_variable)
+                y = df[target_variable].values
         
             optimizer = BayesianOptimizer(task=task, time_budget=3600)
 
@@ -63,6 +92,9 @@ if __name__ == '__main__':
             features_kurtosis = X.kurtosis().mean()
 
             if task == Task.REGRESSION:
+                target_entropy = np.nan
+                imbalance_ratio = np.nan
+            elif task == Task.CLUSTERING:
                 target_entropy = np.nan
                 imbalance_ratio = np.nan
             else:
