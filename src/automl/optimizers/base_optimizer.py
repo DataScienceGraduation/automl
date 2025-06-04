@@ -110,23 +110,6 @@ class BaseOptimizer(ABC):
                 n_jobs=-1 # parallelism for XGBoost
             )
 
-        elif model_lower == "lightgbm":
-            import lightgbm as lgb
-            ModelClass = (lgb.LGBMClassifier if self.task == Task.CLASSIFICATION 
-                        else lgb.LGBMRegressor)
-            model = ModelClass(
-                learning_rate=candidate_params.get("learning_rate", 0.1),
-                n_estimators=candidate_params.get("n_estimators", 100),
-                num_leaves=candidate_params.get("num_leaves", 31),
-                max_depth=candidate_params.get("max_depth", -1),
-                min_child_samples=candidate_params.get("min_child_samples", 20),
-                subsample=candidate_params.get("subsample", 1.0),
-                colsample_bytree=candidate_params.get("colsample_bytree", 1.0),
-                reg_alpha=candidate_params.get("reg_alpha", 0.0),
-                reg_lambda=candidate_params.get("reg_lambda", 0.0),
-                n_jobs=-1,
-                verbose=-1
-            )
         elif model_lower == "logisticregression":
             from sklearn.linear_model import LogisticRegression
             model = LogisticRegression(
@@ -165,9 +148,28 @@ class BaseOptimizer(ABC):
                 early_stopping=True,
                 n_iter_no_change=5
             )
+        elif model_lower == "lightgbm":
+            import lightgbm as lgb
+            ModelClass = (
+                lgb.LGBMClassifier if self.task == Task.CLASSIFICATION
+                else lgb.LGBMRegressor
+            )
+            model = ModelClass(
+                learning_rate=candidate_params.get("learning_rate", 0.1),
+                n_estimators=candidate_params.get("n_estimators", 100),
+                num_leaves=candidate_params.get("num_leaves", 31),
+                max_depth=candidate_params.get("max_depth", -1),
+                min_child_samples=candidate_params.get("min_child_samples", 20),
+                subsample=candidate_params.get("subsample", 1.0),
+                colsample_bytree=candidate_params.get("colsample_bytree", 1.0),
+                reg_alpha=candidate_params.get("reg_alpha", 0.0),
+                reg_lambda=candidate_params.get("reg_lambda", 0.0),
+                n_jobs=-1,
+                verbose=-1,
+            )
         elif model_lower == "extratrees":
             from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor
-            ModelClass = (ExtraTreesClassifier if self.task == Task.CLASSIFICATION 
+            ModelClass = (ExtraTreesClassifier if self.task == Task.CLASSIFICATION
                           else ExtraTreesRegressor)
             model = ModelClass(
                 n_estimators=candidate_params.get("n_estimators", 50),
