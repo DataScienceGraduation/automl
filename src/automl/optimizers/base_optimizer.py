@@ -155,9 +155,6 @@ class BaseOptimizer(ABC):
                 from sklearn.ensemble import HistGradientBoostingClassifier as ModelClass
             else:
                 from sklearn.ensemble import HistGradientBoostingRegressor as ModelClass
-        elif model_name == "lightgbm":
-            import lightgbm as lgb
-            ModelClass = lgb.LGBMClassifier if self.task == Task.CLASSIFICATION else lgb.LGBMRegressor
             model = ModelClass(
                 learning_rate=candidate_params.get("learning_rate", 0.1),
                 max_iter=candidate_params.get("max_iter", 100),

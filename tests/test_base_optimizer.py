@@ -36,3 +36,26 @@ def test_build_model_unsupported():
     dummy = DummyOptimizer(task=Task.CLASSIFICATION, time_budget=1, config={'models':{}})
     with pytest.raises(ValueError):
         dummy.build_model({'model':'UnknownModel'})
+
+def test_build_model_histgradientboosting_classification():
+    dummy = DummyOptimizer(task=Task.CLASSIFICATION, time_budget=1, config={'models':{}})
+    params = {
+        'model': 'HistGradientBoosting',
+        'learning_rate': 0.05,
+        'max_iter': 10
+    }
+    model = dummy.build_model(params.copy())
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    assert isinstance(model, HistGradientBoostingClassifier)
+
+def test_build_model_lightgbm_classification():
+    pytest.importorskip("lightgbm")
+    dummy = DummyOptimizer(task=Task.CLASSIFICATION, time_budget=1, config={'models': {}})
+    params = {
+        'model': 'LightGBM',
+        'learning_rate': 0.05,
+        'n_estimators': 10
+    }
+    model = dummy.build_model(params.copy())
+    import lightgbm as lgb
+    assert isinstance(model, lgb.LGBMClassifier)

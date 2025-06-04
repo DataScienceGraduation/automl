@@ -14,6 +14,7 @@ class Task(Enum):
             "Classification": cls.CLASSIFICATION,
             "Clustering": cls.CLUSTERING,
             "TimeSeries": cls.TIME_SERIES,
+            "Time Series": cls.TIME_SERIES,
         }
         return display_to_enum[display_name]
 
