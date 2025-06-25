@@ -72,7 +72,7 @@ class BaseOptimizer(ABC):
                             f"{candidate_params['model']}.")
         return candidate_params
 
-    def build_model(self, candidate_params: dict):
+    def build_model(self, candidate_params: dict, y=None):
         """
         Build a model instance given candidate_params.
         The candidate_params dictionary should contain a "model" key
@@ -98,7 +98,7 @@ class BaseOptimizer(ABC):
                 min_samples_split=candidate_params.get("min_samples_split", 2),
                 n_jobs=-1  # enable parallelism
             )
-        elif model_name == "xgboost":
+        elif model_lower == "xgboost":
             from xgboost import XGBClassifier, XGBRegressor
             ModelClass = (XGBClassifier if self.task == Task.CLASSIFICATION 
                           else XGBRegressor)
@@ -186,7 +186,7 @@ class BaseOptimizer(ABC):
                 )
             else:
                 raise ValueError("NaiveBayes is not typical for regression.")
-        elif model_name == "arima":
+        elif model_lower == "arima":
             from statsmodels.tsa.arima.model import ARIMA
             model = ARIMA(
                 endog=y,
@@ -198,7 +198,7 @@ class BaseOptimizer(ABC):
                 enforce_stationarity=False,
                 enforce_invertibility=False
             )
-        elif model_name == "sarimax":
+        elif model_lower == "sarimax":
             from statsmodels.tsa.statespace.sarimax import SARIMAX
             model = SARIMAX(
                 endog=y,
