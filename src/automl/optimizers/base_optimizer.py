@@ -216,13 +216,13 @@ class BaseOptimizer(ABC):
                 enforce_stationarity=False,
                 enforce_invertibility=False
             )
-        elif model_name == "kmeans":
+        elif model_lower == "kmeans":
             from sklearn.cluster import KMeans
             model = KMeans(
                 n_clusters=candidate_params.get("n_clusters"),
                 random_state=candidate_params.get("random_state")
             )
-        elif model_name == "dbscan":
+        elif model_lower == "dbscan":
             from sklearn.cluster import DBSCAN
             model = DBSCAN(
                 eps=candidate_params.get("eps"),
