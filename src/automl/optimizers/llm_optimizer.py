@@ -224,7 +224,7 @@ class LLMOptimizer(BaseOptimizer):
         task: str,
         time_budget: int,
         problem_description: str,
-        llm_model: str = "models/gemini-2.5-pro-preview-05-06",
+        llm_model: str = "models/gemini-1.5-pro",
         max_llm_calls: int = 100,
         max_calls_per_min: int = 15,
         patience: int = 25,
@@ -371,12 +371,13 @@ class LLMOptimizer(BaseOptimizer):
             hp_dict = self.param_ranges.get(model, {})
             sub: Dict[str, optuna.distributions.BaseDistribution] = {}
             for hp, rng in hp_dict.items():
+                prefixed_hp = f"{model}:{hp}"
                 if isinstance(rng, list) and len(rng) == 2 and all(isinstance(x, (int, float)) for x in rng):
                     lo, hi = rng
-                    sub[hp] = IntDistribution(lo, hi) if all(isinstance(x, int) for x in rng) \
+                    sub[prefixed_hp] = IntDistribution(lo, hi) if all(isinstance(x, int) for x in rng) \
                                                     else FloatDistribution(lo, hi)
                 else:
-                    sub[hp] = CategoricalDistribution(rng)
+                    sub[prefixed_hp] = CategoricalDistribution(rng)
             if not sub:
                 logger.warning("Model %s has no hyper-parameter search space.", model)
             else:
@@ -512,7 +513,10 @@ class LLMOptimizer(BaseOptimizer):
 
         trial_hp = self._study.ask(self._sub_dists[chosen])
 
-        params = {"model": chosen, **trial_hp.params}
+        params = {"model": chosen}
+        for prefixed_hp, value in trial_hp.params.items():
+            hp = prefixed_hp.split(":", 1)[1]
+            params[hp] = value
 
         self._pending_trial = (trial_model, trial_hp)
         logger.info("TPE suggestion: %s", params)
