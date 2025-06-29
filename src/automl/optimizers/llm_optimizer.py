@@ -180,9 +180,10 @@ class LLMOptimizer(BaseOptimizer):
     )
 
     OPT_PROMPT = (
-        "Current best RMSE: {best:.4f}. Decide if ranges need update.\n"
-        "Your main goal is to improve the RMSE.\n"
-        "Remeber this is negative RMSE, so higher is better.\n"
+        "Current best {metric}: {best:.4f}. Decide if ranges need update.\n"
+        "Your main goal is to improve the {metric}.\n"
+        "Remember, if the metric is 'accuracy', higher is better; "
+        "if 'rmse', it is negative rmse, so higher is also better.\n"
         "Recent trials (JSON list) → {trials}\n"
         "Respond JSON with keys: 'update', 'new_param_ranges' (dict) "
         "'next_params' (json).\n"
@@ -245,8 +246,12 @@ class LLMOptimizer(BaseOptimizer):
         self._cache = _PromptCache(cache_db)
 
         super().__init__(
-            task, time_budget, metric="rmse", verbose=verbose, config={}
-        )  
+            task,
+            time_budget,
+            metric="accuracy" if task == Task.CLASSIFICATION else "rmse",
+            verbose=verbose,
+            config={},
+        )
 
         self.problem_description = problem_description
         self._history: List[Tuple[Dict[str, object], float]] = []
@@ -291,7 +296,7 @@ class LLMOptimizer(BaseOptimizer):
             logger.info("Initial score for %s: %.4f", model, initial_score)
             self._register_trial(self._last_llm_params, initial_score)
 
-        logger.info("Init done → RMSE %.4f", initial_score)
+        logger.info("Init done → %s %.4f", self.metric, initial_score)
 
         while (time.time() - start) < self.time_budget:
             logger.info("LLMBO iteration %d", len(self._history))
@@ -309,8 +314,9 @@ class LLMOptimizer(BaseOptimizer):
             score = self.evaluate_candidate(self.build_model, candidate, X, y)
             self._register_trial(candidate, score)
             logger.info(
-                "Iter %d | RMSE %.4f | best %.4f",
+                "Iter %d | %s %.4f | best %.4f",
                 len(self._history),
+                self.metric,
                 score,
                 self.best_score,
             )
@@ -386,6 +392,7 @@ class LLMOptimizer(BaseOptimizer):
             example_update=self.EXAMPLE_UPDATE,
             models=get_config(task=self.task)["models"].keys(),
             analyses=json.dumps(self._analyses),
+            metric=self.metric,
         )
         try:
             resp_text = self._call_llm(prompt)
@@ -527,7 +534,7 @@ class LLMOptimizer(BaseOptimizer):
 
     def _compact_history(self, n: int) -> str:
         recent = self._history[-n:]
-        return json.dumps([{"params": p, "rmse": s} for p, s in recent])
+        return json.dumps([{"params": p, self.metric: s} for p, s in recent])
 
     def _random_candidate(self) -> Dict[str, object]:
         cand: Dict[str, object] = {}
@@ -576,17 +583,18 @@ if __name__ == "__main__":
     from automl import createPipeline
 
     df = pd.read_csv("./Train.csv")
-    pipeline = createPipeline(df, "Sales_Quantity")
+    df["Price"] = df["Price"].astype(int)
+    pipeline = createPipeline(df, "Price")
     df = pipeline.transform(df)
 
     hpo = LLMOptimizer(
-        task=Task.REGRESSION,
+        task=Task.CLASSIFICATION,
         time_budget=600,
         problem_description="Predicting sales quantities across time for different stores",
     )
 
-    X = df.drop(columns=["Sales_Quantity"])
-    Y = df["Sales_Quantity"]
+    X = df.drop(columns=["Price"])
+    Y = df["Price"]
     hpo.fit(X, Y)
     accuracy = hpo.get_metric_value()
-    print("Best RMSE:", accuracy)
+    print("Best Accuracy:", accuracy)

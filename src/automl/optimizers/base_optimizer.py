@@ -98,18 +98,6 @@ class BaseOptimizer(ABC):
                 min_samples_split=candidate_params.get("min_samples_split", 2),
                 n_jobs=-1  # enable parallelism
             )
-        elif model_lower == "xgboost":
-            from xgboost import XGBClassifier, XGBRegressor
-            ModelClass = (XGBClassifier if self.task == Task.CLASSIFICATION 
-                          else XGBRegressor)
-            model = ModelClass(
-                learning_rate=candidate_params.get("learning_rate", 0.1),
-                n_estimators=candidate_params.get("n_estimators", 100),
-                max_depth=candidate_params.get("max_depth", None),
-                gamma=candidate_params.get("gamma", 0),
-                n_jobs=-1 # parallelism for XGBoost
-            )
-
         elif model_lower == "logisticregression":
             from sklearn.linear_model import LogisticRegression
             model = LogisticRegression(
