@@ -26,6 +26,8 @@ EXPANDED_CLASSIFICATION_CONFIG = {
             "C": list(np.logspace(-4, 4, 1000)),  
             "solver": ["saga"],
             "penalty": ["l1", "l2", "elasticnet"],
+            # Only used when penalty is 'elasticnet'. Will be ignored otherwise.
+            "l1_ratio": list(np.linspace(0.0, 1.0, 21)),
             "max_iter": list(np.arange(100, 1001, 50))
         },
         "NaiveBayes": {

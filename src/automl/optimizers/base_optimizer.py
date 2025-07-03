@@ -100,11 +100,17 @@ class BaseOptimizer(ABC):
             )
         elif model_lower == "logisticregression":
             from sklearn.linear_model import LogisticRegression
+            penalty = candidate_params.get("penalty", "l2")
+            l1_ratio = candidate_params.get("l1_ratio", None)
+            # If penalty is not elasticnet, set l1_ratio to None to prevent scikit-learn error
+            if penalty != "elasticnet":
+                l1_ratio = None
             model = LogisticRegression(
                 solver=candidate_params.get("solver", "saga"),
                 C=candidate_params.get("C", 1.0),
-                penalty=candidate_params.get("penalty", "l2"),
+                penalty=penalty,
                 max_iter=candidate_params.get("max_iter", 100),
+                l1_ratio=l1_ratio,
                 n_jobs=-1
             )
 

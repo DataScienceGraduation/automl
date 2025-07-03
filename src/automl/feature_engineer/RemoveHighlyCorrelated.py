@@ -10,8 +10,12 @@ class RemoveHighlyCorrelated(BaseEstimator, TransformerMixin):
         # Combine X and y for correlation calculation
         df = X.copy()
 
+        if self.target_variable is not None and self.target_variable in df.columns:
+            if not np.issubdtype(df[self.target_variable].dtype, np.number):
+                df[self.target_variable] = df[self.target_variable].astype('category').cat.codes
+
         # Find numerical columns
-        numerical_columns = df.select_dtypes(include=['int64', 'float64']).columns
+        numerical_columns = df.select_dtypes(include=['int64', 'int32', 'int16', 'int8', 'float64', 'float32', 'float16']).columns
 
         # Correlation matrix
         corr_matrix = df[numerical_columns].corr().abs()
