@@ -78,7 +78,7 @@ TIME_SERIES_CONFIG = {
             "P": list(np.arange(0, 7, 1)),
             "D": list(np.arange(0, 3, 1)),
             "Q": list(np.arange(0, 7, 1)),
-            "s": list(np.arange(1, 13, 1)),
+            "s": list(np.arange(2, 13, 1)),
         }
     }
 }

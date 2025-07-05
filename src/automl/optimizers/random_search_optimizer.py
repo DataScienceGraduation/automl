@@ -20,7 +20,6 @@ import joblib
 import os
 import pandas as pd
 
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logging.basicConfig(
@@ -28,21 +27,36 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+
 def _valid_arima_order(p, d, q, series_len):
     return (
-        0 <= d <= 2 and                       
-        0 < p + q or d > 0 and                
-        p + q + d < series_len - 1            
+            0 <= d <= 2 and
+            0 < p + q or d > 0 and
+            p + q + d < series_len - 1
     )
 
-def _valid_seasonal_order(P, D, Q, s, series_len):
-    return (
-        s >= 2 and                            
-        0 <= D <= 1 and
-        0 < P + Q or D > 0 and                
-        (P + Q + D) * s < series_len - 1
-    )
 
+def _valid_seasonal_order(P, D, Q, s, series_len, p=0, q=0):
+    if s < 2:
+        return False
+
+    if not (0 <= D <= 1):
+        return False
+
+    if not (P + Q > 0 or D > 0):
+        return False
+
+    if (P + Q + D) * s >= series_len - 1:
+        return False
+
+    seasonal_ar_lags = {s * i for i in range(1, P + 1)}
+    seasonal_ma_lags = {s * i for i in range(1, Q + 1)}
+    if seasonal_ar_lags & set(range(1, p + 1)):
+        return False
+    if seasonal_ma_lags & set(range(1, q + 1)):
+        return False
+
+    return True
 
 
 class RandomSearchOptimizer(BaseOptimizer):
@@ -65,7 +79,7 @@ class RandomSearchOptimizer(BaseOptimizer):
         """
         series_len = len(self.y) if getattr(self, "y", None) is not None else 0
 
-        while True:                                   
+        while True:
             candidate = {}
             model_names = list(self.models_config.keys())
             chosen_model = np.random.choice(model_names)
@@ -77,16 +91,18 @@ class RandomSearchOptimizer(BaseOptimizer):
             if self.task == Task.TIME_SERIES:
                 if chosen_model.upper() == "ARIMA":
                     if _valid_arima_order(
-                        candidate["p"], candidate["d"], candidate["q"], series_len
+                            candidate["p"], candidate["d"], candidate["q"], series_len
                     ):
                         return candidate
                 elif chosen_model.upper() == "SARIMAX":
                     if (
-                        _valid_arima_order(candidate["p"], candidate["d"],
-                                           candidate["q"], series_len)
-                        and _valid_seasonal_order(candidate["P"], candidate["D"],
-                                                   candidate["Q"], candidate["s"],
-                                                   series_len)
+                            _valid_arima_order(candidate["p"], candidate["d"],
+                                               candidate["q"], series_len)
+                            and _valid_seasonal_order(candidate["P"], candidate["D"],
+                                                      candidate["Q"], candidate["s"],
+                                                      series_len,
+                                                      p=candidate["p"],
+                                                      q=candidate["q"])
                     ):
                         return candidate
             else:
@@ -96,7 +112,7 @@ class RandomSearchOptimizer(BaseOptimizer):
         """
         Perform random search to find the best hyperparameter configuration.
         Returns a trained model with those parameters.
-        
+
         Parameters:
             X: np.ndarray - Feature matrix
             y: np.ndarray - Target values (not used for clustering)
@@ -117,17 +133,17 @@ class RandomSearchOptimizer(BaseOptimizer):
             history.append((candidate, score))
 
             if score > self.best_score:
-                    self.best_score = score
+                self.best_score = score
 
             remaining_time = self.time_budget - (time.time() - start_time)
             logger.info("Candidate: %s yielded score: %.4f | Best score: %.4f | Time left: %.2fs",
                         candidate, score, self.best_score, remaining_time)
 
         if self.task == Task.REGRESSION or self.task == Task.TIME_SERIES:
-            best_params = min(history, key=lambda item: item[1])[0] 
+            best_params = min(history, key=lambda item: item[1])[0]
         else:
             best_params = max(history, key=lambda item: item[1])[0]
-        
+
         logger.info("Best candidate found: %s", best_params)
 
         if self.task == Task.TIME_SERIES:
@@ -143,7 +159,8 @@ class RandomSearchOptimizer(BaseOptimizer):
         logger.info("Optimization complete. Best model: %s with score %.4f",
                     final_model.__class__.__name__, self.best_score)
         return final_model
-    
+
+
 # if __name__ == '__main__':
 #     df = pd.read_csv(r'D:\College\Grad\AutoML\data_clustering\fish_data.csv')
 #     print(df.head())
@@ -159,12 +176,13 @@ class RandomSearchOptimizer(BaseOptimizer):
 #     print(accuracy)
 
 if __name__ == "__main__":
-    df = pd.read_csv(r"C:\Users\pc\OneDrive\Desktop\Graduation Project\automl\src\automl\optimizers\training_data\train.csv")
+    df = pd.read_csv(
+        r"C:\Users\pc\OneDrive\Desktop\Graduation Project\automl\src\automl\optimizers\training_data\train.csv")
     print(df.head())
     print(len(df))
 
     # Preprocessing pipeline
-    pl = createPipeline(df, target_variable='Sales',task='time series')
+    pl = createPipeline(df, target_variable='Sales', task='time series')
     df = pl.transform(df)
     print(df.head())
     print(len(df))
@@ -175,7 +193,6 @@ if __name__ == "__main__":
     y = df['Sales']
 
     gps.fit(X=None, y=y)
-
 
     rmse = gps.get_metric_value()
     print(f"RMSE: {rmse}")
